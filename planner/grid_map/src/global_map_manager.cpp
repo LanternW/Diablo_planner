@@ -60,7 +60,7 @@ namespace ugv_planner
         grid_map.header.frame_id     = "world";
         grid_map.info.resolution     = p_grid_resolution;
         grid_map.info.height         = int(map_length/p_grid_resolution) + 2 ;
-        grid_map.info.width          = int(map_width/p_grid_resolution)+2 ;
+        grid_map.info.width          = int(map_width/p_grid_resolution) + 2 ;
 
         cout<<"[LOCALMAP DEBUG] index = "<<grid_map.info.height << " | " <<grid_map.info.width<<endl;
 
@@ -72,10 +72,14 @@ namespace ugv_planner
         grid_map.info.origin.position.y = pt_w(1);
         grid_map.info.origin.position.z = pt_w(2);
 
+        //map_index_xmax = int(map_length / p_grid_resolution);
+        //map_index_ymax = int(map_width  / p_grid_resolution);
+
+        map_index_xmax = grid_map.info.height;
+        map_index_ymax = grid_map.info.width;
 
 
         int floor[grid_map.info.width * grid_map.info.height] = {0};   // [0,100]
-        //int ceil[grid_map.info.width * grid_map.info.height]  = {0};   // [0,100]
 
         vector<double> sorted_grid_map[grid_map.info.width * grid_map.info.height];
         if (grid_information != NULL){ delete[] grid_information;}
@@ -96,32 +100,12 @@ namespace ugv_planner
             new_h    = pt_w(2);
 
             pt_m    = posW2posM(pt_w);
-            //pt_m    = posW2posM(Eigen::Vector4d(0,0,0,1));
             
             index_x = pt_m(0) / p_grid_resolution;
             index_y = pt_m(1) / p_grid_resolution;
 
-            sorted_grid_map[index_x * grid_map.info.width + index_y].push_back(new_h);
-            //{cout<<"[LOCALMAP DEBUG] index = "<<index_x << " | " <<index_y<<endl;}
-            /*
-            //h = floor[index_x * grid_map.info.width + index_y] ;
-            //c = ceil[index_x * grid_map.info.width + index_y] + 1000;
-            if(new_h - h < 20)
-            {
-                floor[index_x * grid_map.info.width + index_y] = (int(new_h)>100)?100:int(new_h);
-                grid_information[index_x * grid_map.info.width + index_y].height = int(new_h);
-            }
-            else if(new_h < c)
-            {
-                ceil[index_x * grid_map.info.width + index_y] = int(new_h) - 1000;
-                if( ceil[index_x * grid_map.info.width + index_y] + 1000 - floor[index_x * grid_map.info.width + index_y] < 20)
-                {
-                    floor[index_x * grid_map.info.width + index_y] = ceil[index_x * grid_map.info.width + index_y] + 1000;
-                    ceil[index_x * grid_map.info.width + index_y] = 0; 
-                }
-            }
-            */
-
+            //sorted_grid_map[index_x * grid_map.info.width + index_y].push_back(new_h);
+            sorted_grid_map[toAddress(index_x, index_y)].push_back(new_h);
         }
 
         // get other grid information here
@@ -146,17 +130,27 @@ namespace ugv_planner
                     break;
                 }
             }
-            /*
-            grid_information[i].gap = ceil[i] + 1000 - floor[i];
-            if(grid_information[i].height > 20){grid_information[i].is_occupied = true;}
-            */
         }
         ////
-
+        //floor equals to GridInformation.is_occupied
         vector<signed char> a(floor, floor + grid_map.info.width * grid_map.info.height);
         grid_map.data = a;
-
         grid_map_pub.publish(grid_map);
+
+        fillESDF(20); 
+////////////////debug
+
+        esdf_var  = new double[grid_map.info.width * grid_map.info.height];
+        for(int i = 0 ; i < grid_map.info.width * grid_map.info.height ; i++)
+        {
+            esdf_var[i] = grid_information[i].esdf_var;
+        }
+
+        vector<signed char> b(esdf_var, esdf_var + grid_map.info.width * grid_map.info.height);
+        grid_map.data = b;
+        grid_map_pub.publish(grid_map);
+////////////////////////
+
     }
 
     void LanGridMapManager::rcvOdomHandler(const nav_msgs::Odometry odom)
@@ -182,7 +176,8 @@ namespace ugv_planner
                 index_y = index(1);
                 if(posInMap(posm)) 
                 {  
-                    return grid_information[index_x * grid_map.info.width + index_y].is_occupied;
+                    //return grid_information[index_x * grid_map.info.width + index_y].is_occupied;
+                    return grid_information[toAddress(index_x, index_y)].is_occupied;
                 }  
             }
         }
@@ -197,7 +192,8 @@ namespace ugv_planner
         {
             for(int i = -flate; i <= flate; i++)
             {
-                if(grid_information[(index(0)+i) * grid_map.info.width + (index(1)+j)].is_occupied ){return true;}
+                //if(grid_information[(index(0)+i) * grid_map.info.width + (index(1)+j)].is_occupied ){return true;}
+                if(grid_information[toAddress(index(0)+i , index(1)+j)].is_occupied ){return true;}
             }
         }
         return false;
@@ -230,9 +226,10 @@ namespace ugv_planner
 
     double LanGridMapManager::getGapByI(Eigen::Vector2i index)
     {
-        if( indexInMap(index(0),index(1)) )
+        if( indexInMap(index) )
         {
-            return grid_information[index(0)* grid_map.info.width +index(1)].gap;
+            //return grid_information[index(0)* grid_map.info.width +index(1)].gap;
+            return grid_information[toAddress(index(0), index(1))].gap;
         }
         else
         {
@@ -243,7 +240,7 @@ namespace ugv_planner
 
     bool LanGridMapManager::indexInMap(int index_x, int index_y)
     {
-        if(index_x >= 0 && index_y >= 0 && index_x < int(map_length/p_grid_resolution) && index_y < int(map_width/p_grid_resolution)) 
+        if(index_x >= 0 && index_y >= 0 && index_x < map_index_xmax && index_y < map_index_ymax) 
         {
             return true; 
         }
@@ -298,6 +295,42 @@ namespace ugv_planner
         grid_map_pub         = nh.advertise<nav_msgs::OccupancyGrid>("grid_map",1);
 
     }
+
+
+    ///////////////////////////////////////////////////
+    ///////////  ESDF
+    ///////////////////////////////////////////////////
+
+    void LanGridMapManager::fillESDF(int t_distance)
+    {
+        int addr;
+        double var;
+        Eigen::Vector2i index;
+        for(int index_x = 0 ; index_x < map_index_xmax; index_x ++)
+        {
+            for(int index_y = 0 ; index_y < map_index_ymax; index_y ++)
+            {
+                addr = toAddress(index_x ,index_y);
+                if( grid_information[addr].is_occupied  == false ) {continue;}
+
+                for(int dx = -t_distance ; dx <= t_distance; dx++)
+                {
+                    for(int dy = -t_distance ; dy <= t_distance; dy++)
+                    {  
+                        index(0) = index_x + dx;
+                        index(1) = index_y + dy;
+                        if( !indexInMap(index)) {continue;}
+                        if( is_occupiedI(index,0)) {continue;} // only positive, because of corridor
+
+                        addr = toAddress(index(0) ,index(1));
+                        var  = Eigen::Vector2d(dx, dy).norm() * p_grid_resolution * 30;   // why times 30? Just do it!
+                        grid_information[addr].esdf_var = min( grid_information[addr].esdf_var , var );
+                    }
+                }
+            }
+        }
+    }
+
 
     ///////////////////////////////////////////////////
     ///////////  A* Path search

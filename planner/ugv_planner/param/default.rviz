@@ -29,7 +29,7 @@ Panels:
     Experimental: false
     Name: Time
     SyncMode: 0
-    SyncSource: sim_global_map
+    SyncSource: ""
 Preferences:
   PromptSaveOnExit: true
 Toolbars:
@@ -105,7 +105,7 @@ Visualization Manager:
       Marker Topic: /ugv_planner_node/target/vis
       Name: target
       Namespaces:
-        "": true
+        {}
       Queue Size: 100
       Value: true
     - Class: rviz/Marker
@@ -113,7 +113,7 @@ Visualization Manager:
       Marker Topic: /ugv_planner_node/trajectory/vis
       Name: traj
       Namespaces:
-        "": true
+        {}
       Queue Size: 100
       Value: true
     - Class: rviz/Marker
@@ -159,7 +159,7 @@ Visualization Manager:
       Marker Topic: /ugv_planner_node/point2/vis
       Name: path
       Namespaces:
-        "": true
+        {}
       Queue Size: 100
       Value: true
     - Alpha: 1
@@ -284,25 +284,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 13.572089195251465
+      Distance: 11.613092422485352
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 3.9847543239593506
-        Y: -5.303201675415039
-        Z: -0.017819637432694435
+        X: 1.9679431915283203
+        Y: -5.164657115936279
+        Z: -0.25835588574409485
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.3397963047027588
+      Pitch: 1.5697963237762451
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 2.743504285812378
+      Yaw: 3.128511905670166
     Saved: ~
 Window Geometry:
   Displays:

@@ -19,7 +19,7 @@ using namespace std;
 namespace ugv_planner
 {
     struct GridNode;
-    typedef GridNode* GridNodePtr;  /*    GridNodePtr：指向struct GridNode结构体类型的指针变量    */
+    typedef GridNode* GridNodePtr;  /*    GridNode: DT for A* search    */
 
     class GridNode
     {   
@@ -64,13 +64,14 @@ namespace ugv_planner
     class GirdInformation
     {
     public:
-        GirdInformation(){is_occupied = false; gap = 10000.0; height = 0.0; roughness = 0.0; plane_normal = Eigen::Vector3d(0,0,0);}
+        GirdInformation(){is_occupied = false; gap = 10000.0; height = 0.0; roughness = 0.0; esdf_var = 1e10; esdf_g = Eigen::Vector3d(0,0,0);}
     public:
         bool   is_occupied;             //可通行性
         double gap;                     //落差
         double height;                  //
         double roughness;               //粗糙度
-        Eigen::Vector3d plane_normal;   //平面法向量
+        double esdf_var;                //as its name
+        Eigen::Vector3d esdf_g;         //as its name , maybe useless
     };
 
     class LanGridMapManager
@@ -88,9 +89,6 @@ namespace ugv_planner
             bool is_occupied_line(Eigen::Vector4d posw1, Eigen::Vector4d posw2, int flate);
 
             double getGapByI(Eigen::Vector2i index);
-            //bool is_occupiedI(Eigen::Vector3i index);
-            //bool is_occupied_segment(Eigen::Vector4d pos1 , Eigen::Vector4d pos2);
-            //bool is_occupied_segment3(Eigen::Vector3d pos1 , Eigen::Vector3d pos2);
 
             double getResolution(){return p_grid_resolution;}
 
@@ -99,7 +97,7 @@ namespace ugv_planner
             {
                 return indexInMap(index(0), index(1));
             }
-            bool posInMap(Eigen::Vector4d pos);
+            bool posInMap(Eigen::Vector4d pos);  //posM
             bool posWInMap(Eigen::Vector4d pos);
 
             double getMountainTop(Eigen::Vector4d posw);
@@ -119,6 +117,7 @@ namespace ugv_planner
                 return point3;
             }
 
+            int toAddress(int x, int y){return x * grid_map.info.width + y ;}
             Eigen::Vector2i posM2Index(Eigen::Vector4d pos);
             Eigen::Vector2i posW2Index(Eigen::Vector4d pos);
             Eigen::Vector4d index2PosW(Eigen::Vector2i index);
@@ -145,6 +144,10 @@ namespace ugv_planner
             vector<Eigen::Vector3d> getNeighbors( vector<Eigen::Vector3d> set , vector<Eigen::Vector3d> C_plus, vector<Eigen::Vector3d> C);
             vector<Eigen::Vector3d> convexClusterInflation(Eigen::Vector2i seed_index);
 
+
+            ////// esdf
+            void fillESDF(int t_distance); 
+
         private:
 
             GirdInformation* grid_information = NULL;
@@ -157,8 +160,13 @@ namespace ugv_planner
             Eigen::Matrix4d Tm_w;
             nav_msgs::Odometry      ugv_odom;
             nav_msgs::OccupancyGrid grid_map;
+        
+        public:
+            double *esdf_var = NULL;
             double map_length ;
             double map_width ;
+            double map_index_xmax;
+            double map_index_ymax;
             double p_grid_resolution;
 
 

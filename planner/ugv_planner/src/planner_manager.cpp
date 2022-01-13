@@ -14,6 +14,16 @@ vector<double> lanHeightOptimizer::ceil_heights;
 double lanHeightOptimizer::w_smooth = 100;
 double lanHeightOptimizer::w_safty = 4;
 ////////////////////
+//// for middle optimizer
+namespace ugv_planner
+{
+  LanGridMapManager* lanMiddleOptimizer::global_map_manager = NULL;
+  Eigen::Vector3d lanMiddleOptimizer::start;
+  Eigen::Vector3d lanMiddleOptimizer::end;
+  double lanMiddleOptimizer::w_smooth = 100000;
+  double lanMiddleOptimizer::w_safty = 1;
+}
+////////////////////
 
 
 const double pi = 3.1415926535;
@@ -21,6 +31,7 @@ using namespace quickhull;
 
 namespace ugv_planner
 {
+
 
   UGVPlannerManager::UGVPlannerManager() {
 
@@ -33,9 +44,11 @@ namespace ugv_planner
     bezier_basis -> setFixedOrder(7);
 
     lan_bezier_optimizer   = new lanBezierOptimizer();
+    lan_middle_optimizer   = new lanMiddleOptimizer();
     lan_height_optimizer   = new lanHeightOptimizer();
     global_map_manager     = new LanGridMapManager();
     global_map_manager     -> init(nh);
+
 
     
 
@@ -305,7 +318,8 @@ namespace ugv_planner
       }
       time_duration   = bezier_time.sum();
 
-      vis_render.visBezierTrajectory(bezier_basis, bezier_coeff, bezier_time );
+
+      vis_render.visBezierTrajectory( bezier_basis, bezier_coeff, bezier_time );
   }
 
   
@@ -365,14 +379,33 @@ namespace ugv_planner
       ceil_heights = lan_height_optimizer -> getHeightCps();
 
 
+
+
       std::cout<<"[PLANNER MANAGER] height optimizer return value: " << error_code << std::endl;
       
       for(int i = 0 ; i < ceil_heights.size(); i++)
       {
         point_h = space_points[i];
-        point_h(2) = ceil_heights[i];
+        point_h(2) = ( ceil_heights[i] < min_height) ? min_height : ceil_heights[i] ; 
         space_points_optimized.push_back(point_h);
       }
+
+      vector<Eigen::Vector3d> space_points_optimizedxy;
+      try
+      {
+        int ret = lan_middle_optimizer -> midSoftOptimize(  space_points_optimized ,space_points_optimized[0], space_points_optimized[space_points_optimized.size() -1] ,global_map_manager);
+        space_points_optimizedxy = lan_middle_optimizer -> getOptimizedCps();
+        for(int i = 0 ; i < space_points_optimizedxy.size(); i++)
+        {
+          space_points_optimized[i](0) = space_points_optimizedxy[i](0);
+          space_points_optimized[i](1) = space_points_optimizedxy[i](1);
+        }
+      }
+      catch(const std::exception& e)
+      {
+        std::cerr << e.what() << '\n';
+      }
+      
 
       vis_render.renderPoints(space_points_optimized , Eigen::Vector3d(0.2,0.9,0.2),1, 0.04, 3);
 
@@ -386,6 +419,7 @@ namespace ugv_planner
 
       UniformBspline::parameterizeToBspline(1, space_points_optimized, start_end_derivative, h_bspline_ctrlpts);
       UniformBspline h_bspline = UniformBspline(h_bspline_ctrlpts, 3, 1);
+
 
       vis_render.visHoleBodyTrajectory(h_bspline);
   }

@@ -94,12 +94,12 @@ void pubGlobalMap()
     //hole
     geneWall(0, -5, 4, 0.5, 0.5);
     geneWall(5, -5, 4, 0.5, 0.5);
-    geneWall(0, -5, 0.5, 9, 0.5, 0.4);
+    geneWall(0, -5, 0.6, 9, 0.5, 0.3);
 
 
-    geneWall(0, -6.5, 4, 0.5, 0.5);
-    geneWall(5.5, -6.5, 4, 0.5, 0.5);
-    geneWall(0, -6.5, 0.5, 9, 0.5, 0.4);
+    geneWall(0, -5.5, 4, 0.5, 0.5);
+    geneWall(5.5, -5.5, 4, 0.5, 0.5);
+    geneWall(0, -5.5, 0.4, 9, 0.5, 0.5);
 
     geneWall(0, -8, 7, 0.5, 0.5);
     geneWall(8, -8, 1, 0.5, 0.5);

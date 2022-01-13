@@ -13,6 +13,7 @@
 #include <ugv_planner/quickhull.hpp>
 #include <ugv_planner/bezier_base.h>
 #include <ugv_planner/lan_bezier_optimizer.h>
+#include <ugv_planner/lan_middle_optimizer.h>
 #include <ugv_planner/lan_height_optimizer.h>
 #include <ugv_planner/corridor.h>
 
@@ -85,7 +86,10 @@ namespace ugv_planner
     ros::Time traj_end_time;
 
     lanBezierOptimizer* lan_bezier_optimizer;
+    lanMiddleOptimizer* lan_middle_optimizer;
     lanHeightOptimizer* lan_height_optimizer;
+  public:
+
     LanGridMapManager* global_map_manager;
 
   };
