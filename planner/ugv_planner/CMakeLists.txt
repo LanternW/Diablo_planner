@@ -33,6 +33,7 @@ add_message_files(FILES
 	DifferentialVelocity.msg
   PolyhedronMSG.msg
   PolyhedronArrayMSG.msg
+  Polynome.msg
 )
 generate_messages(DEPENDENCIES
 	std_msgs
@@ -82,6 +83,7 @@ add_executable(ugv_planner_node
 
   src/bezier_base.cpp
   src/lan_bezier_optimizer.cpp
+  src/minco_optimizer.cpp
   )
 
 add_dependencies(ugv_planner_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})

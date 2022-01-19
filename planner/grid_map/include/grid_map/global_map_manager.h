@@ -64,9 +64,10 @@ namespace ugv_planner
     class GirdInformation
     {
     public:
-        GirdInformation(){is_occupied = false; gap = 10000.0; height = 0.0; roughness = 0.0; esdf_var = 1e10; esdf_g = Eigen::Vector3d(0,0,0);}
+        GirdInformation(){is_occupied = false; is_occupied_flate = false,gap = 10000.0; height = 0.0; roughness = 0.0; esdf_var = 1e10; esdf_g = Eigen::Vector3d(0,0,0);}
     public:
         bool   is_occupied;             //可通行性
+        bool   is_occupied_flate;
         double gap;                     //落差
         double height;                  //
         double roughness;               //粗糙度
@@ -84,11 +85,24 @@ namespace ugv_planner
             void rcvOdomHandler(const nav_msgs::Odometry odom);
 
             void init(ros::NodeHandle& node_handler);
+
+            // 是否被占用
             bool is_occupied(Eigen::Vector4d posw, int flate);
             bool is_occupiedI(Eigen::Vector2i index, int flate);
             bool is_occupied_line(Eigen::Vector4d posw1, Eigen::Vector4d posw2, int flate);
 
+            // 主要用于占用珊格的椭球生成
+            bool is_not_occupied(Eigen::Vector4d posw, int flate);
+            bool is_not_occupiedI(Eigen::Vector2i index, int flate);
+            bool is_not_occupied_line(Eigen::Vector4d posw1, Eigen::Vector4d posw2, int flate);
+
+            bool isBoundaryOcc(int index_x , int index_y);
+
             double getGapByI(Eigen::Vector2i index);
+            double getGapByPosW3(Eigen::Vector3d posw)
+            {
+                return getGapByI(posW2Index(point324(posw)));
+            }
 
             double getResolution(){return p_grid_resolution;}
 
@@ -118,6 +132,7 @@ namespace ugv_planner
             }
 
             int toAddress(int x, int y){return x * grid_map.info.width + y ;}
+            bool isAddressOutOfMap(int addr){return (addr >= map_index_xmax * map_index_ymax) || (addr < 0);}
             Eigen::Vector2i posM2Index(Eigen::Vector4d pos);
             Eigen::Vector2i posW2Index(Eigen::Vector4d pos);
             Eigen::Vector4d index2PosW(Eigen::Vector2i index);
@@ -144,9 +159,24 @@ namespace ugv_planner
             vector<Eigen::Vector3d> getNeighbors( vector<Eigen::Vector3d> set , vector<Eigen::Vector3d> C_plus, vector<Eigen::Vector3d> C);
             vector<Eigen::Vector3d> convexClusterInflation(Eigen::Vector2i seed_index);
 
+            ////// convex cluster generate for occupied grid
+            bool checkNConvexity(vector<Eigen::Vector3d> C , Eigen::Vector3d pos);
+            vector<Eigen::Vector3d> getNNeighbors( vector<Eigen::Vector3d> set , vector<Eigen::Vector3d> C_plus, vector<Eigen::Vector3d> C);
+            vector<Eigen::Vector3d> convexNClusterInflation(Eigen::Vector2i seed_index);
+
 
             ////// esdf
             void fillESDF(int t_distance); 
+            void flateMap(int t_distance);
+            void publishESDFMap();
+            double calcESDF_Cost(const Eigen::Vector3d& pos_w);
+            Eigen::Vector3d calcESDF_Grid(const Eigen::Vector3d& pos_w);
+            double getBlinearGap(const Eigen::Vector3d& pos_w);
+            Eigen::Vector3d getBlinearGapGrid(const Eigen::Vector3d& pos_w);
+            void calcZ_CostGrid(const Eigen::Vector3d& pos_w , double &z_cost , Eigen::Vector3d& z_grad);
+            
+            void getGradCostP(const Eigen::Vector3d p ,double& cost, Eigen::Vector3d& grad);
+
 
         private:
 
@@ -155,6 +185,7 @@ namespace ugv_planner
             ros::Subscriber global_map_sub;
             ros::Subscriber odometry_sub;
             ros::Publisher  grid_map_pub;
+            ros::Publisher  esdf_vis_pub;
 
 
             Eigen::Matrix4d Tm_w;
@@ -168,8 +199,17 @@ namespace ugv_planner
             double map_index_xmax;
             double map_index_ymax;
             double p_grid_resolution;
+            double truncation_distance;
 
+            double max_height;            
+            double min_height;
 
+            double left_boundary   ;
+            double right_boundary  ;
+            double up_boundary     ;
+            double down_boundary   ;
+
+            typedef shared_ptr<LanGridMapManager> Ptr;
     };
 }
 

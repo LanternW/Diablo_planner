@@ -6,8 +6,6 @@ Panels:
       Expanded:
         - /Global Options1
         - /Status1
-        - /Grid1
-        - /sim_global_map1
         - /Odometry1/Shape1
       Splitter Ratio: 0.5
     Tree Height: 1088
@@ -29,7 +27,7 @@ Panels:
     Experimental: false
     Name: Time
     SyncMode: 0
-    SyncSource: ""
+    SyncSource: sim_global_map
 Preferences:
   PromptSaveOnExit: true
 Toolbars:
@@ -105,7 +103,7 @@ Visualization Manager:
       Marker Topic: /ugv_planner_node/target/vis
       Name: target
       Namespaces:
-        {}
+        "": true
       Queue Size: 100
       Value: true
     - Class: rviz/Marker
@@ -113,7 +111,7 @@ Visualization Manager:
       Marker Topic: /ugv_planner_node/trajectory/vis
       Name: traj
       Namespaces:
-        {}
+        "": true
       Queue Size: 100
       Value: true
     - Class: rviz/Marker
@@ -159,7 +157,7 @@ Visualization Manager:
       Marker Topic: /ugv_planner_node/point2/vis
       Name: path
       Namespaces:
-        {}
+        "": true
       Queue Size: 100
       Value: true
     - Alpha: 1
@@ -253,6 +251,44 @@ Visualization Manager:
       Marker Topic: /ugv_planner_node/polyhedron_corridor/vis
       Name: SMC
       Namespaces:
+        "": true
+      Queue Size: 100
+      Value: true
+    - Alpha: 1
+      Autocompute Intensity Bounds: true
+      Autocompute Value Bounds:
+        Max Value: 1.9508780241012573
+        Min Value: 0
+        Value: true
+      Axis: Z
+      Channel Name: intensity
+      Class: rviz/PointCloud2
+      Color: 255; 255; 255
+      Color Transformer: AxisColor
+      Decay Time: 0
+      Enabled: false
+      Invert Rainbow: false
+      Max Color: 255; 255; 255
+      Max Intensity: 0
+      Min Color: 0; 0; 0
+      Min Intensity: 0
+      Name: ESDF
+      Position Transformer: XYZ
+      Queue Size: 10
+      Selectable: true
+      Size (Pixels): 3
+      Size (m): 0.004000000189989805
+      Style: Flat Squares
+      Topic: /esdf_vis
+      Unreliable: false
+      Use Fixed Frame: true
+      Use rainbow: true
+      Value: false
+    - Class: rviz/Marker
+      Enabled: true
+      Marker Topic: /traj_opt/debug_path
+      Name: DEBUG
+      Namespaces:
         {}
       Queue Size: 100
       Value: true
@@ -284,16 +320,16 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 11.613092422485352
+      Distance: 14.346392631530762
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 1.9679431915283203
-        Y: -5.164657115936279
-        Z: -0.25835588574409485
+        X: 3.1337244510650635
+        Y: -5.196754455566406
+        Z: -2.18930983543396
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
@@ -302,7 +338,7 @@ Visualization Manager:
       Pitch: 1.5697963237762451
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 3.128511905670166
+      Yaw: 3.0884969234466553
     Saved: ~
 Window Geometry:
   Displays:

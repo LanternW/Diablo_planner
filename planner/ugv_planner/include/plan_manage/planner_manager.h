@@ -13,8 +13,8 @@
 #include <ugv_planner/quickhull.hpp>
 #include <ugv_planner/bezier_base.h>
 #include <ugv_planner/lan_bezier_optimizer.h>
-#include <ugv_planner/lan_middle_optimizer.h>
-#include <ugv_planner/lan_height_optimizer.h>
+#include <minco_opt/traj_opt.h>
+#include "ugv_planner/Polynome.h"
 #include <ugv_planner/corridor.h>
 
 namespace ugv_planner
@@ -38,16 +38,17 @@ namespace ugv_planner
     void despRcvCallback(const geometry_msgs::PoseStamped desp);
 
     void globalReplan();
-    void PublishTraj(UniformBspline r_bspline);
+    void PublishTraj();
 
     ////// SMC
     vector<Eigen::Vector3d> sortVertices(vector<Eigen::Vector3d> vertices);
     vector<PolygonCorridor> corridors;
     vector<double> time_allocation;
+    void generateOCC();
     void generateSMC(vector<Eigen::Vector3d> path);
     void generateCurveByWps(vector<Eigen::Vector3d> waypoints );
     void generateCurveByOptimizer(Eigen::Vector3d start_pt, Eigen::Vector3d end_pt, int seg);
-    void generateHeightCurve();
+    void generateFinalMincoTraj(Eigen::Vector3d start_pt, Eigen::Vector3d end_pt);
     void trajPlanning(Eigen::Vector3d start_pt, Eigen::Vector3d end_pt);   
     vector<double> timeAllocate(Eigen::Vector3d start_pt, Eigen::Vector3d end_pt);
 
@@ -86,11 +87,11 @@ namespace ugv_planner
     ros::Time traj_end_time;
 
     lanBezierOptimizer* lan_bezier_optimizer;
-    lanMiddleOptimizer* lan_middle_optimizer;
-    lanHeightOptimizer* lan_height_optimizer;
+    unique_ptr<TrajOpt> minco_traj_optimizer;
+    Trajectory final_trajectory;
   public:
 
-    LanGridMapManager* global_map_manager;
+    LanGridMapManager::Ptr global_map_manager;
 
   };
 } 

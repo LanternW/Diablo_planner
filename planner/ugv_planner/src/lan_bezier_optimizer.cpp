@@ -523,7 +523,7 @@ int lanBezierOptimizer::bezierCurveGeneration(
         double penalty_num_y ;
         double penalty_num_xy ;
 
-        double security_weight = 0.03;
+        double security_weight = 0.00;
         for(int k = 0; k < segment_num; k ++)
         {
             A = corridors[k].getA();

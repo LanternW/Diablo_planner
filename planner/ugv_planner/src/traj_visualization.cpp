@@ -48,50 +48,51 @@ namespace ugv_planner {
         target_vis_pub.publish(sphere);
     }
 
-    void TrajVisualization::visHoleBodyTrajectory(UniformBspline h_bspline)
+    void TrajVisualization::visPolynomialTrajectory(Trajectory traj)
     {
-        visualization_msgs::Marker line_strip;
-        line_strip.header.frame_id  = "world";
-        line_strip.header.stamp     = ros::Time::now();
-        line_strip.type             = visualization_msgs::Marker::LINE_STRIP;
-        line_strip.action           = visualization_msgs::Marker::ADD;
-        line_strip.id               = 104;
+        visualization_msgs::Marker traj_vis;
+        traj_vis.header.stamp       = ros::Time::now();
+        traj_vis.header.frame_id    = "world";
+        traj_vis.id = 0;
+        traj_vis.type = visualization_msgs::Marker::LINE_STRIP;
+        traj_vis.scale.x = 0.05;
+        traj_vis.scale.y = 0.05;
+        traj_vis.scale.z = 0.05;
+        traj_vis.pose.orientation.x = 0.0;
+        traj_vis.pose.orientation.y = 0.0;
+        traj_vis.pose.orientation.z = 0.0;
+        traj_vis.pose.orientation.w = 1.0;
 
-        line_strip.pose.orientation.w   = 1.0;
-        line_strip.color.r              = 0.4;
-        line_strip.color.g              = 0.8;
-        line_strip.color.b              = 0.4;
-        line_strip.color.a              = 0.8;
-        line_strip.scale.x          = 0.05;
-
+        traj_vis.color.a = 1.0;
+        traj_vis.color.r = 1.0;
+        traj_vis.color.g = 1.0;//max(0.0, 1 - rgb / 5.0);
+        traj_vis.color.b = 0.0;
         geometry_msgs::Point pt;
+        Eigen::Vector3d pos;
 
-        double traj_duration = h_bspline.getTimeSum();
-
-
-        Eigen::VectorXd tpos(3);
-        Eigen::Vector4d tposw;
-        for (double t = 0; t <= traj_duration ; t += 0.01)
+        double t_duration = traj.getTotalDuration();
+        for(double t = 0; t < t_duration; t += 0.05)
         {
-            tpos      = h_bspline.evaluateDeBoorT(t);
-            tposw(0)  = pt.x = tpos[0];
-            tposw(1)  = pt.y = tpos[1];
-            tposw(2)  = pt.z = tpos[2];
-            tposw(3)  = 1;
-            line_strip.points.push_back(pt);
+            pos = traj.getPos(t);
+            pt.x = pos(0);
+            pt.y = pos(1);
+            pt.z = pos(2);
+            traj_vis.points.push_back(pt);
         }
-        trajectory_vis_pub.publish(line_strip);
+        trajectory_vis_pub.publish(traj_vis);
     }
 
     void TrajVisualization::visBezierTrajectory(Bernstein* bezier_basis , Eigen::MatrixXd polyCoeff, Eigen::VectorXd time)
     {   
         visualization_msgs::Marker traj_vis, control_pts;
 
+        int cpts_id = 0;
+        int traj_id = 1000;
         control_pts.header.stamp    = traj_vis.header.stamp       = ros::Time::now();
         control_pts.header.frame_id = traj_vis.header.frame_id    = "world";
 
-        control_pts.id = 1;
-        traj_vis.id = 0;
+        control_pts.id = cpts_id;
+        traj_vis.id = traj_id;
         traj_vis.type = visualization_msgs::Marker::LINE_STRIP;
         control_pts.type = visualization_msgs::Marker::SPHERE_LIST;
 
@@ -116,7 +117,7 @@ namespace ugv_planner {
         traj_vis.color.a = 1.0;
         traj_vis.color.r = 1.0;
         traj_vis.color.g = 1.0;//max(0.0, 1 - rgb / 5.0);
-        traj_vis.color.b = 0.0;
+        traj_vis.color.b = 1.0;
         control_pts.color.a = 1.0;
         control_pts.color.r = 1.0;
         control_pts.color.g = 0.0;
@@ -139,9 +140,9 @@ namespace ugv_planner {
 
             for(int j = 0; j < 8; j++)
             {
-                ctl_pt.x = polyCoeff(i, j);
-                ctl_pt.y = polyCoeff(i, j+8);
-                ctl_pt.z = polyCoeff(i, j+16);
+                ctl_pt.x = polyCoeff(i, j)    * time(i) ;
+                ctl_pt.y = polyCoeff(i, j+8)  * time(i) ;
+                ctl_pt.z = polyCoeff(i, j+16) * time(i) ;
                 control_pts.points.push_back(ctl_pt);
             }
             for (double t = 0.0; t < 1.0; t += 0.01 / time(i), count += 1){
@@ -155,9 +156,9 @@ namespace ugv_planner {
                 pre = cur;
             }
         }
+            trajectory_vis_pub.publish(traj_vis);
+            trajectory_vis_pub.publish(control_pts);
 
-        trajectory_vis_pub.publish(traj_vis);
-        trajectory_vis_pub.publish(control_pts);
     }
 
 

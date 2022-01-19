@@ -10,6 +10,7 @@
 
 #include <ugv_planner/bezier_base.h>
 #include <ugv_planner/corridor.h>
+#include <minco_opt/poly_traj_utils.hpp>
 #include <vector>
 
 namespace ugv_planner {
@@ -29,7 +30,7 @@ namespace ugv_planner {
         //void renderSMC(vector<Eigen::Vector3d> vertices);
         void renderSMC(vector<PolygonCorridor> corridors);
         void visBezierTrajectory(Bernstein* bezier_basis, Eigen::MatrixXd polyCoeff, Eigen::VectorXd time);
-        void visHoleBodyTrajectory(UniformBspline h_bspline);
+        void visPolynomialTrajectory(Trajectory traj);
 
 
 
