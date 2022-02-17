@@ -6,6 +6,7 @@
 #include <Eigen/Eigen>
 #include <geometry_msgs/PoseStamped.h>
 #include <nav_msgs/Odometry.h>
+#include <std_msgs/Float64MultiArray.h>
 #include <bspline_opt/uniform_bspline.h>
 #include "grid_map/global_map_manager.h"
 #include <ros/ros.h>
@@ -46,10 +47,14 @@ namespace ugv_planner
     vector<double> time_allocation;
     void generateOCC();
     void generateSMC(vector<Eigen::Vector3d> path);
+    PolygonCorridor cluster2Corridor(vector<Eigen::Vector3d> grids_set ,Eigen::Vector3d seed_pt );
+    Eigen::Vector3d findClosestEdgeNormal(PolygonCorridor corridor, Eigen::Vector3d pt);
     void generateCurveByWps(vector<Eigen::Vector3d> waypoints );
     void generateCurveByOptimizer(Eigen::Vector3d start_pt, Eigen::Vector3d end_pt, int seg);
-    void generateFinalMincoTraj(Eigen::Vector3d start_pt, Eigen::Vector3d end_pt);
-    void trajPlanning(Eigen::Vector3d start_pt, Eigen::Vector3d end_pt);   
+    void generateFinalMincoTraj(Eigen::Vector3d start_pt, Eigen::Vector3d end_pt, vector<Eigen::Vector3d> path, bool use_path_wp = false);
+    void trajPlanning(Eigen::Vector3d start_pt, Eigen::Vector3d end_pt, vector<Eigen::Vector3d> path);
+    void checkJps();
+    void pubJps();   
     vector<double> timeAllocate(Eigen::Vector3d start_pt, Eigen::Vector3d end_pt);
 
 
@@ -60,6 +65,7 @@ namespace ugv_planner
     ros::Subscriber odom_sub;
     ros::Subscriber des_pos_sub;
     ros::Publisher  traj_pub;
+    ros::Publisher  jps_pub;
     ros::Publisher  target_pub;
     TrajVisualization vis_render;
     Bernstein* bezier_basis;

@@ -30,7 +30,7 @@ namespace ugv_planner {
         //void renderSMC(vector<Eigen::Vector3d> vertices);
         void renderSMC(vector<PolygonCorridor> corridors);
         void visBezierTrajectory(Bernstein* bezier_basis, Eigen::MatrixXd polyCoeff, Eigen::VectorXd time);
-        void visPolynomialTrajectory(Trajectory traj);
+        void visPolynomialTrajectory(Trajectory traj, Eigen::Vector3d color, int id);
 
 
 

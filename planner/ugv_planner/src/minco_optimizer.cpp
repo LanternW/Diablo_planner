@@ -109,7 +109,8 @@ static inline int earlyExit(void* ptrObj,
 bool TrajOpt::generate_traj(const Eigen::MatrixXd& iniState,
                             const std::vector<Eigen::Vector3d>& path,
                             const int N,
-                            Trajectory& traj) {
+                            Trajectory& traj,
+                            bool is_continuing) {
 
   N_ = N;
   
@@ -117,7 +118,10 @@ bool TrajOpt::generate_traj(const Eigen::MatrixXd& iniState,
   dim_t_ = 1;
   dim_p_ = N_ - 1;
   
-  x_ = new double[dim_t_ + 3 * dim_p_ + 9];
+  if( !is_continuing )
+  {
+    x_ = new double[dim_t_ + 3 * dim_p_ + 9];
+  }
   double& t = x_[0];
   Eigen::Map<Eigen::MatrixXd> P(x_ + dim_t_, 3, dim_p_);
   Eigen::Map<Eigen::MatrixXd> tailS(x_ + dim_t_ + 3 * dim_p_, 3, 3);
@@ -172,14 +176,20 @@ bool TrajOpt::generate_traj(const Eigen::MatrixXd& iniState,
     std::this_thread::sleep_for(std::chrono::milliseconds(2000));
   }
   if (opt_ret1 < 0) {
-    delete[] x_;
+    if(is_continuing)
+    {
+      delete[] x_;
+    }
     return false;
   }
   Eigen::VectorXd T(N_);
   forwardT(t, T);
   jerkOpt_.generate(P, tailS, T);
   traj = jerkOpt_.getTraj();
-  delete[] x_;
+  if(is_continuing)
+  {
+    delete[] x_;
+  }
   
   return true;
 }
@@ -187,8 +197,8 @@ bool TrajOpt::generate_traj(const Eigen::MatrixXd& iniState,
 
 void TrajOpt::addTimeIntPenalty(double& cost) {
   Eigen::Vector3d pos, vel, acc, jer;
-  Eigen::Vector3d grad_tmp;
-  double cost_tmp;
+  Eigen::Vector3d grad_tmp, grad_tmp_p, grad_tmp_v ;
+  double cost_tmp, cost_tmp_p, cost_tmp_v;
   Eigen::Matrix<double, 6, 1> beta0, beta1, beta2, beta3;
   double s1, s2, s3, s4, s5;
   double step, alpha;
@@ -246,6 +256,20 @@ void TrajOpt::addTimeIntPenalty(double& cost) {
         cost += omg * step * cost_tmp;
       }
 
+      if (grad_cost_d(pos,vel, grad_tmp_p, grad_tmp_v, cost_tmp_p, cost_tmp_v)) {
+        
+        gradViolaPc = beta0 * grad_tmp_p.transpose();
+        gradViolaPt = alpha * grad_tmp_p.dot(vel);
+        jerkOpt_.gdC.block<6, 3>(i * 6, 0) += omg * step * gradViolaPc * cost_tmp_v;
+        //jerkOpt_.gdT(i) += omg * (cost_tmp_p / K_ + step * gradViolaPt ) * cost_tmp_v;
+
+        gradViolaVc = beta1 * grad_tmp_v.transpose();
+        gradViolaVt = alpha * grad_tmp_v.dot(acc);
+        jerkOpt_.gdC.block<6, 3>(i * 6, 0) += omg * step * gradViolaVc * cost_tmp_p;
+        jerkOpt_.gdT(i) += omg * (cost_tmp_v / K_ + step * gradViolaVt ) * cost_tmp_p;
+        cost += omg * step * cost_tmp_p * cost_tmp_v;
+      }
+
       s1 += step;
     }
   }
@@ -256,9 +280,11 @@ bool TrajOpt::grad_cost_p(const Eigen::Vector3d& p,
                           double& costp) {
   
   // costp = gridmapPtr_->getCostWithGrad(p, gradp);
-  double esdf = 0;
+  double esdf = 0 ;
   double z_cost = 0;
-  Eigen::Vector3d gp(Eigen::Vector3d::Zero()); 
+  Eigen::Vector3d gp(Eigen::Vector3d::Zero());
+  //double step_esdf = 0;
+  //Eigen::Vector3d sgp(Eigen::Vector3d::Zero());  
   Eigen::Vector3d z_grid(Eigen::Vector3d::Zero()); 
   costp = 0;
   gradp = Eigen::Vector3d::Zero();
@@ -268,12 +294,18 @@ bool TrajOpt::grad_cost_p(const Eigen::Vector3d& p,
   esdf = grid_map_manager -> calcESDF_Cost(p);
   gp   = grid_map_manager -> calcESDF_Grid(p);
 
+  //step_esdf =  grid_map_manager -> calcStepESDF_Cost(p);
+  //sgp       =  grid_map_manager -> calcStepESDF_Grid(p);
 
-  grid_map_manager -> calcZ_CostGrid(p,z_cost ,z_grid);
+
+  grid_map_manager -> calcZ_CostGrad(p,z_cost ,z_grid);
   costp +=  rhoP_tmp_ * z_cost;
   gradp +=  rhoP_tmp_ * z_grid;
 
-  if (esdf > grid_map_manager -> truncation_distance || esdf == 0)
+  //if ( (esdf       > grid_map_manager -> truncation_distance || esdf == 0) &&
+  //     (step_esdf  > grid_map_manager -> truncation_distance || step_esdf == 0))
+  //{
+  if ( esdf > grid_map_manager -> truncation_distance || esdf == 0 )
   {
     return true;
   }
@@ -281,6 +313,10 @@ bool TrajOpt::grad_cost_p(const Eigen::Vector3d& p,
   {    
     costp +=  rhoP_tmp_ * pow(grid_map_manager -> truncation_distance - esdf, 3);
     gradp +=  rhoP_tmp_ * 3 * pow(grid_map_manager -> truncation_distance - esdf, 2) * gp;
+
+
+    //costp +=  rhoP_tmp_ * pow(grid_map_manager -> truncation_distance - step_esdf, 3);
+    //gradp +=  rhoP_tmp_ * 3 * pow(grid_map_manager -> truncation_distance - step_esdf, 2) * sgp;
 
     return true;
   }
@@ -290,25 +326,85 @@ bool TrajOpt::grad_cost_p(const Eigen::Vector3d& p,
 bool TrajOpt::grad_cost_v(const Eigen::Vector3d& v,
                           Eigen::Vector3d& gradv,
                           double& costv) {
-  double vpen = v.squaredNorm() - vmax_ * vmax_;
-  if (vpen > 0) {
-    gradv = rhoV_ * 6 * vpen * vpen * v;
-    costv = rhoV_ * vpen * vpen * vpen;
+  
+  gradv = Eigen::Vector3d::Zero();
+  costv = 0;
+  double vpen  = v.squaredNorm() - vmax_ * vmax_;
+  double vzpen = v(2)*v(2) - vmax_z_ * vmax_z_;   // vz_max = 0.2
+  if(vpen > 0 || vzpen > 0)
+  {
+    if (vzpen > 0) {
+      gradv += rhoV_ * 6 * vzpen * vzpen * Eigen::Vector3d(0,0,v(2));
+      costv += rhoV_ * vzpen * vzpen * vzpen;
+    }
+    if (vpen > 0) {
+      gradv += rhoV_ * 6 * vpen * vpen * v;
+      costv += rhoV_ * vpen * vpen * vpen;
+    }
     return true;
   }
+
   return false;
+
+  //double vpen  = v.squaredNorm() - vmax_ * vmax_;
+  //if (vpen > 0) {
+  //  gradv = rhoV_ * 6 * vpen * vpen * v;
+  //  costv = rhoV_ * vpen * vpen * vpen;
+  //  return true;
+  //}
+  //return false;
 }
 
 bool TrajOpt::grad_cost_a(const Eigen::Vector3d& a,
                           Eigen::Vector3d& grada,
                           double& costa) {
-  double apen = a.squaredNorm() - amax_ * amax_;
-  if (apen > 0) {
-    grada = rhoA_ * 6 * apen * apen * a;
-    costa = rhoA_ * apen * apen * apen;
+
+  grada = Eigen::Vector3d::Zero();
+  costa = 0;
+  double apen  = a.squaredNorm() - amax_ * amax_;
+  double azpen = a(2)*a(2) - amax_z_ * amax_z_;
+  if(apen > 0 || azpen > 0)
+  {
+    if (azpen > 0) {
+      grada += rhoA_ * 6 * azpen * azpen * Eigen::Vector3d(0,0,a(2));
+      costa += rhoA_ * azpen * azpen * azpen;
+    }
+    if (apen > 0) {
+      grada += rhoA_ * 6 * apen * apen * a;
+      costa += rhoA_ * apen * apen * apen;
+    }
+    return true;
+  }
+
+  return false;
+
+  //double apen = a.squaredNorm() - amax_ * amax_;
+  //if (apen > 0) {
+  //  grada = rhoA_ * 6 * apen * apen * a;
+  //  costa = rhoA_ * apen * apen * apen;
+  //  return true;
+  //}
+  //return false;
+}
+
+bool TrajOpt::grad_cost_d(const Eigen::Vector3d& p,
+                           const Eigen::Vector3d& v, 
+                           Eigen::Vector3d& gradp,
+                           Eigen::Vector3d& gradv,
+                           double& costp,
+                           double& costv)
+{
+  if( grid_map_manager -> getStepDirCostAndGrad(p,v,gradp, gradv,costp,costv ) ) 
+  {
+    //std::cout<< "cost_v = "<<costv<<" | cost_p = "<<costp<<std::endl
+    //         << "gradv = "<<gradv<<" | grad_v = "<<gradv<<std::endl;
+
+    costv *= 1000;
+    gradv *= 1000;
     return true;
   }
   return false;
+
 }
 
 void TrajOpt::drawDebug(Trajectory end_path)

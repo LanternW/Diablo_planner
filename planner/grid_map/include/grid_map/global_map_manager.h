@@ -61,10 +61,25 @@ namespace ugv_planner
         ~GridNode(){};
     };
 
+    class JumpPoint
+    {
+    public:
+       JumpPoint(Eigen::Vector2d _takeoff_pos, Eigen::Vector2d _velocity_dir, double _takeoff_time)
+       {
+           takeoff_pos  = _takeoff_pos;
+           velocity_dir = _velocity_dir;
+           takeoff_time = _takeoff_time;
+       }
+    public:
+       double takeoff_time;
+       Eigen::Vector2d takeoff_pos;
+       Eigen::Vector2d velocity_dir; 
+    };
+
     class GirdInformation
     {
     public:
-        GirdInformation(){is_occupied = false; is_occupied_flate = false,gap = 10000.0; height = 0.0; roughness = 0.0; esdf_var = 1e10; esdf_g = Eigen::Vector3d(0,0,0);}
+        GirdInformation(){is_occupied = false; is_occupied_flate = false,gap = 10000.0; height = 0; roughness = 0.0; esdf_var = 1e10; step_esdf_var = 1e10;esdf_g = Eigen::Vector3d(0,0,0);}
     public:
         bool   is_occupied;             //可通行性
         bool   is_occupied_flate;
@@ -72,6 +87,7 @@ namespace ugv_planner
         double height;                  //
         double roughness;               //粗糙度
         double esdf_var;                //as its name
+        double step_esdf_var;                //as its name
         Eigen::Vector3d esdf_g;         //as its name , maybe useless
     };
 
@@ -96,7 +112,12 @@ namespace ugv_planner
             bool is_not_occupiedI(Eigen::Vector2i index, int flate);
             bool is_not_occupied_line(Eigen::Vector4d posw1, Eigen::Vector4d posw2, int flate);
 
+            bool is_step(Eigen::Vector4d posw);
+            bool is_stepI(Eigen::Vector2i index);
+            bool is_not_step_line(Eigen::Vector4d posw1, Eigen::Vector4d posw2);
+
             bool isBoundaryOcc(int index_x , int index_y);
+            bool isBoundaryStep(int index_x , int index_y);
 
             double getGapByI(Eigen::Vector2i index);
             double getGapByPosW3(Eigen::Vector3d posw)
@@ -114,8 +135,11 @@ namespace ugv_planner
             bool posInMap(Eigen::Vector4d pos);  //posM
             bool posWInMap(Eigen::Vector4d pos);
 
-            double getMountainTop(Eigen::Vector4d posw);
-            double getMountainTopIndex(int index_x, int index_y);
+            double getHeightByI(Eigen::Vector2i index);
+            double getHeightByPosW3(Eigen::Vector3d posw)
+            {
+                return getHeightByI(posW2Index(point324(posw)));
+            }
             
             Eigen::Vector4d point324(Eigen::Vector3d point3)
             {
@@ -167,15 +191,27 @@ namespace ugv_planner
 
             ////// esdf
             void fillESDF(int t_distance); 
+            void fillStepESDF(int t_distance); 
             void flateMap(int t_distance);
             void publishESDFMap();
             double calcESDF_Cost(const Eigen::Vector3d& pos_w);
             Eigen::Vector3d calcESDF_Grid(const Eigen::Vector3d& pos_w);
+
+            double calcStepESDF_Cost(const Eigen::Vector3d& pos_w);
+            Eigen::Vector3d calcStepESDF_Grid(const Eigen::Vector3d& pos_w);
+
             double getBlinearGap(const Eigen::Vector3d& pos_w);
-            Eigen::Vector3d getBlinearGapGrid(const Eigen::Vector3d& pos_w);
-            void calcZ_CostGrid(const Eigen::Vector3d& pos_w , double &z_cost , Eigen::Vector3d& z_grad);
+            Eigen::Vector3d getBlinearGapGrad(const Eigen::Vector3d& pos_w);
+            void calcZ_CostGrad(const Eigen::Vector3d& pos_w , double &z_cost , Eigen::Vector3d& z_grad);
             
             void getGradCostP(const Eigen::Vector3d p ,double& cost, Eigen::Vector3d& grad);
+
+            ////// step dir con
+            bool getStepDirCostAndGrad(const Eigen::Vector3d p, const Eigen::Vector3d v,
+                                        Eigen::Vector3d& gradp,
+                                        Eigen::Vector3d& gradv,
+                                        double& costp, 
+                                        double& costv);
 
 
         private:
@@ -194,6 +230,7 @@ namespace ugv_planner
         
         public:
             double *esdf_var = NULL;
+            double *step_esdf_var = NULL;
             double map_length ;
             double map_width ;
             double map_index_xmax;
@@ -202,12 +239,15 @@ namespace ugv_planner
             double truncation_distance;
 
             double max_height;            
-            double min_height;
+            double min_height;         
+            double max_jump_height;
 
             double left_boundary   ;
             double right_boundary  ;
             double up_boundary     ;
             double down_boundary   ;
+
+            vector<JumpPoint> jps;
 
             typedef shared_ptr<LanGridMapManager> Ptr;
     };

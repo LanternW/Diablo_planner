@@ -6,7 +6,9 @@
     <!-- trajectory server -->
     <node pkg="ugv_planner" name="ugv_traj_server" type="traj_server" output="screen">
       <remap from="~controller_cmd" to="/ugv_planning/wheels_vel_cmd"/>
+      <remap from="~jump_command" to="/ugv_planning/jump_cmd"/>
       <remap from="~trajectory_topic" to="/ugv_planner_node/trajectory"/>
+      <remap from="~jt_array" to="/ugv_planner_node/jt_array"/>
       <remap from="~odom" to="$(arg odom_topic)"/>
     </node>
 
@@ -17,11 +19,13 @@
       <remap from="global_map" to="/global_map"/>
       <remap from="odom" to="/viscar/odom"/>
       <param name="optimization/rhoT" value="100"/>
-      <param name="optimization/rhoP" value="10000"/>
+      <param name="optimization/rhoP" value="100000"/>
       <param name="optimization/rhoV" value="1000"/>
       <param name="optimization/rhoA" value="1000"/>
       <param name="optimization/vmax" value="4.0"/>
       <param name="optimization/amax" value="6.0"/>
+      <param name="optimization/vmaxz" value="0.2"/>
+      <param name="optimization/amaxz" value="0.4"/>
       <param name="optimization/pause_debug" value="1"/>
 
     </node>

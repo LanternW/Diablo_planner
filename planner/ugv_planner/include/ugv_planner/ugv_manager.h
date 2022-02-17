@@ -17,8 +17,10 @@ public:
     void odomCallback(const nav_msgs::OdometryConstPtr& odom);
     ros::Subscriber waypoints_sub, odom_sub;
     ros::Publisher visugv_pub;
+
+    double max_height = 0.8;
 private:
-    std::string mesh_resource;
+    std::string mesh_resource,mesh_resource2;
     std::string frame;
     double ugv_l, ugv_w, ugv_h;
 };

@@ -30,7 +30,7 @@ find_package(catkin REQUIRED COMPONENTS
 
 
 add_message_files(FILES
-	DifferentialVelocity.msg
+	DVHcontrol.msg
   PolyhedronMSG.msg
   PolyhedronArrayMSG.msg
   Polynome.msg

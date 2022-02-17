@@ -48,12 +48,12 @@ namespace ugv_planner {
         target_vis_pub.publish(sphere);
     }
 
-    void TrajVisualization::visPolynomialTrajectory(Trajectory traj)
+    void TrajVisualization::visPolynomialTrajectory(Trajectory traj, Eigen::Vector3d color, int id = 10)
     {
         visualization_msgs::Marker traj_vis;
         traj_vis.header.stamp       = ros::Time::now();
         traj_vis.header.frame_id    = "world";
-        traj_vis.id = 0;
+        traj_vis.id = id;
         traj_vis.type = visualization_msgs::Marker::LINE_STRIP;
         traj_vis.scale.x = 0.05;
         traj_vis.scale.y = 0.05;
@@ -64,9 +64,9 @@ namespace ugv_planner {
         traj_vis.pose.orientation.w = 1.0;
 
         traj_vis.color.a = 1.0;
-        traj_vis.color.r = 1.0;
-        traj_vis.color.g = 1.0;//max(0.0, 1 - rgb / 5.0);
-        traj_vis.color.b = 0.0;
+        traj_vis.color.r = color(0);
+        traj_vis.color.g = color(1);
+        traj_vis.color.b = color(2);
         geometry_msgs::Point pt;
         Eigen::Vector3d pos;
 

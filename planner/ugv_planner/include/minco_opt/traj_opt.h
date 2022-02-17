@@ -22,7 +22,7 @@ class TrajOpt {
   // weight for time regularization term
   double rhoT_;
   // collision avoiding and dynamics paramters
-  double pok_, vmax_, amax_;
+  double pok_, vmax_, amax_, vmax_z_ , amax_z_;
   double rhoP_, rhoV_, rhoA_;
   double rhoTracking_, rhosVisibility_;
   double clearance_d_, tolerance_d_, theta_clearance_;
@@ -56,6 +56,7 @@ class TrajOpt {
   
   void drawDebug(Trajectory end_path);
   void drawDebugWp(std::vector<Eigen::Vector3d> end_path);
+  void deleteX_(){delete[] x_;}
 
  public:
   TrajOpt() {}
@@ -68,6 +69,8 @@ class TrajOpt {
     nh.param("optimization/pok", pok_, 0.3);
     nh.param("optimization/vmax", vmax_, 3.0);
     nh.param("optimization/amax", amax_, 4.0);
+    nh.param("optimization/vmaxz", vmax_z_, 0.2);
+    nh.param("optimization/amaxz", amax_z_, 0.4);
     nh.param("optimization/rhoT", rhoT_, 1000.0);
     nh.param("optimization/rhoP", rhoP_, 1000.0);
     nh.param("optimization/rhoV", rhoV_, 1000.0);
@@ -84,7 +87,8 @@ class TrajOpt {
   bool generate_traj(const Eigen::MatrixXd& iniState,
                      const std::vector<Eigen::Vector3d>& path,
                      int N,
-                     Trajectory& traj);
+                     Trajectory& traj,
+                     bool is_continuing);
 
   void addTimeIntPenalty(double& cost);
   bool grad_cost_p(const Eigen::Vector3d& p,
@@ -96,6 +100,14 @@ class TrajOpt {
   bool grad_cost_a(const Eigen::Vector3d& a,
                    Eigen::Vector3d& grada,
                    double& costa);
+  
+  bool grad_cost_d(const Eigen::Vector3d& p,
+                   const Eigen::Vector3d& v, 
+                   Eigen::Vector3d& gradp,
+                   Eigen::Vector3d& gradv,
+                   double& costp,
+                   double& costv);
+
 };
 
 }  // namespace rm_planner

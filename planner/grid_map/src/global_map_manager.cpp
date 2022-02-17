@@ -18,6 +18,7 @@ namespace ugv_planner
 
         max_height           = 0.8;
         min_height           = 0.3;
+        max_jump_height      = 0.3;
 
         Tm_w                 = Eigen::Matrix4d::Identity();
         Eigen::AngleAxisd v(pi / 2, Eigen::Vector3d(0, 0, 1));
@@ -112,7 +113,7 @@ namespace ugv_planner
             sorted_grid_map[toAddress(index_x, index_y)].push_back(new_h);
         }
 
-        // get other grid information here
+/////////// get height info and gap info
         for(int i = 0 ; i < grid_map.info.width * grid_map.info.height ; i++)
         {
             sort(sorted_grid_map[i].begin(), sorted_grid_map[i].end());
@@ -122,26 +123,57 @@ namespace ugv_planner
                 if(sorted_grid_map[i][j] > h && sorted_grid_map[i][j] < h +0.3)
                 {
                     h = sorted_grid_map[i][j];
+                    grid_information[i].height = h;
                     floor[i] = (h>1)?100 :h* 100;
-                    if(h > 0.2){grid_information[i].is_occupied = true;}
+                    if(h > max_jump_height){grid_information[i].is_occupied = true;}
                 }
                 else if(sorted_grid_map[i][j] >= h + 0.3)
                 {
                     grid_information[i].gap = sorted_grid_map[i][j] - h;
                     grid_information[i].height = h;
                     floor[i] = (h>1)?100 :h* 100;
-                    if(h > 0.2){grid_information[i].is_occupied = true;}
+                    if(h > max_jump_height){grid_information[i].is_occupied = true;}
                     break;
                 }
             }
         }
+
+
+        // get is_occupied info
+        //double center_h, sorround_h;
+        //for(int i = 2 ; i < map_index_xmax - 2 ; i++)
+        //{
+        //    for(int j = 2 ; j < map_index_ymax - 2; j++)
+        //    {
+        //        center_h = grid_information[toAddress(i,j)].height;
+        //        for(int dx = -1 ; dx <= 1 ; dx++)
+        //        {
+        //            for(int dy = -1 ; dy <= 1; dy++)
+        //            {
+        //                sorround_h = grid_information[toAddress(i+dx, j+dy)].height;
+        //                if(sorround_h > 1e8) {break;}
+        //                if( fabs(sorround_h - center_h) > 0.12 )
+        //                {
+        //                    grid_information[toAddress(i,j)].is_occupied = true;
+        //                    grid_information[toAddress(i+dx, j+dy)].is_occupied = true;
+        //                }
+        //                
+        //            }
+        //            if(sorround_h > 1e8) {break;}
+        //        }
+//
+//
+        //    }
+        //}
+
         ////
         //floor equals to GridInformation.is_occupied
         vector<signed char> a(floor, floor + grid_map.info.width * grid_map.info.height); //ori_occupied_map
 
 
-        flateMap(1);
+        flateMap(0);
         fillESDF(10); 
+        //fillStepESDF(5);
 ////////////////esdf
         
         esdf_var = new double[grid_map.info.width * grid_map.info.height];
@@ -150,6 +182,14 @@ namespace ugv_planner
             esdf_var[i] = grid_information[i].esdf_var;
         }
         vector<signed char> b(esdf_var, esdf_var + grid_map.info.width * grid_map.info.height); // esdf_map
+
+/////////////////step_esdf
+        step_esdf_var = new double[grid_map.info.width * grid_map.info.height];
+        for(int i = 0 ; i < grid_map.info.width * grid_map.info.height ; i++)
+        {
+            step_esdf_var[i] = grid_information[i].step_esdf_var;
+        }
+        vector<signed char> f(step_esdf_var, step_esdf_var + grid_map.info.width * grid_map.info.height); // esdf_map
         
 
 //////////////// occupied
@@ -169,9 +209,19 @@ namespace ugv_planner
         }
         vector<signed char> d(flate_map, flate_map + grid_map.info.width * grid_map.info.height); // esdf_map
 
+////////////////////////
+//////////////// height
+
+        double *height_map = new double[grid_map.info.width * grid_map.info.height];
+        for(int i = 0 ; i < grid_map.info.width * grid_map.info.height ; i++)
+        {
+            height_map[i] = grid_information[i].height * 60;
+        }
+        vector<signed char> e(height_map, height_map + grid_map.info.width * grid_map.info.height); // esdf_map
+
+////////////////////////
         grid_map.data = c;
         grid_map_pub.publish(grid_map);
-////////////////////////
         publishESDFMap();
 
     }
@@ -182,12 +232,15 @@ namespace ugv_planner
     }
 
 
-    void LanGridMapManager::publishESDFMap()
+    void LanGridMapManager::publishESDFMap()  //not only used for ESDF visualization
     {
         double esdf;
         Eigen::Vector3d posw ,g;
+        Eigen::Vector3d gp,gv;
+        double cp,cv;
         pcl::PointXYZI pt;
         pcl::PointCloud<pcl::PointXYZI> esdf_cloud;
+        //jps.push_back(JumpPoint(Eigen::Vector2d(3,-17) , Eigen::Vector2d(0,-1)));
         for(double z = 0.0 ; z <= 0.0 ; z += 0.1)
         {
             for(double x = down_boundary  + 0.2; x <= up_boundary - 0.2; x += 0.08 * p_grid_resolution)
@@ -197,7 +250,12 @@ namespace ugv_planner
                     posw(0) = x;
                     posw(1) = y;
                     posw(2) = z;
+                    //esdf = getHeightByPosW3(posw);
                     esdf = calcESDF_Cost(posw);
+                    //esdf = calcStepESDF_Cost(posw);
+                    //esdf = is_step(point324(posw));
+                    //esdf = is_occupied(point324(posw),0);
+                    //getStepDirCostAndGrad(posw, g, gp,gv,esdf,cv);
                     pt.x = x;
                     pt.y = y;
                     pt.z = 0;
@@ -328,20 +386,55 @@ namespace ugv_planner
         return false;
     }
 
+    bool LanGridMapManager::is_step(Eigen::Vector4d posw)
+    {
+        Eigen::Vector3d pos_w = point423(posw);
+        double h = getHeightByPosW3(pos_w);
+        if(h > 0.09)
+        {
+            return true;
+        }
+        return false;
+    }
+
+    bool LanGridMapManager::is_stepI(Eigen::Vector2i index)
+    {
+        double h = getHeightByI(index);
+        if(h > 0.09)
+        {
+            return true;
+        }
+        return false;
+    }
+    bool LanGridMapManager::is_not_step_line(Eigen::Vector4d posw1, Eigen::Vector4d posw2)
+    {
+        Eigen::Vector4d posw_inner;
+        double distance = (posw1 - posw2).norm();
+        int    segs     = 2 * (distance / p_grid_resolution);
+        for(double t = 1.0/segs ; t < 1 ; t += 1.0/segs)
+        {
+            posw_inner = t * posw1 + (1-t) * posw2;
+            if(!is_step(posw_inner)){
+                return true;
+            }
+        }
+        return false;
+    }
+
 
     double LanGridMapManager::getGapByI(Eigen::Vector2i index)
     {
-        if( indexInMap(index) )
-        {
-            double gap = grid_information[toAddress(index(0), index(1))].gap;
-            gap = (gap >= max_height) ? max_height : gap;
-            return gap;
-        }
-        else
-        {
-            ROS_ERROR("[GRID MAP] index out of map!");
-            return 1000;
-        }
+     
+        double gap = grid_information[toAddress(index(0), index(1))].gap;
+        gap = min(gap, max_height); 
+        gap = max(min_height, gap);
+        return gap;
+    }
+
+    double LanGridMapManager::getHeightByI(Eigen::Vector2i index)
+    {
+        double height = grid_information[toAddress(index(0), index(1))].height;
+        return height;
     }
 
     
@@ -417,6 +510,32 @@ namespace ugv_planner
     ///////////  ESDF
     ///////////////////////////////////////////////////
 
+
+    bool LanGridMapManager::isBoundaryStep(int index_x , int index_y)
+    {
+        bool boundary = false;
+        int n_indx, n_indy;
+        for(int i = -1; i <= 1; i++)
+        {
+            for(int j = -1; j <= 1; j++)
+            {
+                n_indx = index_x + i;
+                n_indy = index_y + j;
+                if(!indexInMap(n_indx,n_indy))
+                {
+                    return false;
+                }
+                if( is_stepI(Eigen::Vector2i(n_indx, n_indy)) == false)
+                {
+                    boundary = true;
+                    break;
+                }
+            }
+            if(boundary){break;}
+        }
+        return boundary;
+    }
+
     bool LanGridMapManager::isBoundaryOcc(int index_x , int index_y)
     {
         bool boundary = false;
@@ -440,6 +559,47 @@ namespace ugv_planner
             if(boundary){break;}
         }
         return boundary;
+    }
+
+
+    void LanGridMapManager::fillStepESDF(int t_distance)
+    {
+        int addr;
+        double var;
+        Eigen::Vector2i index;
+        for(int index_x = 0 ; index_x < map_index_xmax; index_x ++)
+        {
+            for(int index_y = 0 ; index_y < map_index_ymax; index_y ++)
+            {
+                if( is_stepI(Eigen::Vector2i(index_x, index_y))  == false ) {continue;}
+                else if(!isBoundaryStep(index_x,index_y)){continue;}
+
+                for(int dx = -t_distance ; dx <= t_distance; dx++)
+                {
+                    for(int dy = -t_distance ; dy <= t_distance; dy++)
+                    {  
+                        index(0) = index_x + dx;
+                        index(1) = index_y + dy;
+                        addr = toAddress(index(0) ,index(1));
+                        if( !indexInMap(index)) {continue;}
+
+                        var  = Eigen::Vector2d(dx, dy).norm() * p_grid_resolution ;   
+                        grid_information[addr].step_esdf_var = min( grid_information[addr].step_esdf_var , var );
+
+                    }
+                }
+            }
+        }
+
+        for(int index_x = 0 ; index_x < map_index_xmax; index_x ++)
+        {
+            for(int index_y = 0 ; index_y < map_index_ymax; index_y ++)
+            {
+                addr = toAddress(index_x ,index_y);
+                if( is_stepI(Eigen::Vector2i(index_x, index_y))  == false ) {continue;}
+                grid_information[addr].step_esdf_var *= -1;
+            }
+        }
     }
 
     void LanGridMapManager::fillESDF(int t_distance)
@@ -651,6 +811,173 @@ namespace ugv_planner
         return g;
     }
 
+    double LanGridMapManager::calcStepESDF_Cost(const Eigen::Vector3d& pos_w)
+    {
+        double posx, posy;        //posm
+        double index_x , index_y;
+        int lines_index_x1 , lines_index_x2;
+        int lines_index_y1 , lines_index_y2;
+        double var_lu, var_ru;
+        double var_ld, var_rd;
+        double var_u, var_d;
+        double esdf_cost = 0.0;
+        int addr_lu, addr_ld, addr_ru, addr_rd;
+
+        Eigen::Vector4d posw, posm;
+        posw(0) = pos_w(0);
+        posw(1) = pos_w(1);
+        posw(2) = 0;
+        posw(3) = 1;
+        posm = posW2posM(posw);
+
+        if( !posWInMap(posw) )
+        {
+            ROS_WARN("[calcESDF] point out of map!");
+            return 0;
+        }
+
+        //Eigen::Vector2i index = posW2Index(posw);
+        //return esdf_var[toAddress(index(0), index(1))];
+
+        posx = posm(0);
+        posy = posm(1);
+
+        index_x = posx /  p_grid_resolution;
+        if(index_x - floor(index_x) <= 0.5)
+        {
+            lines_index_x1 = floor(index_x);
+            lines_index_x2 = floor(index_x) - 1;
+        }
+        else
+        {
+            lines_index_x1 = ceil(index_x);
+            lines_index_x2 = floor(index_x);
+        }
+
+        index_y = posy / p_grid_resolution;
+        if(index_y - floor(index_y) <= 0.5)
+        {
+            lines_index_y1 = floor(index_y);
+            lines_index_y2 = floor(index_y) - 1;
+        }
+        else
+        {
+            lines_index_y1 = ceil(index_y);
+            lines_index_y2 = floor(index_y);
+        }
+
+
+
+        ////////////////////////
+        addr_lu = toAddress(lines_index_x1 , lines_index_y1);
+        addr_ru = toAddress(lines_index_x2 , lines_index_y1);
+        addr_ld = toAddress(lines_index_x1 , lines_index_y2);
+        addr_rd = toAddress(lines_index_x2 , lines_index_y2);
+        if( !isAddressOutOfMap(addr_lu) &&
+            !isAddressOutOfMap(addr_ru) &&
+            !isAddressOutOfMap(addr_ld) &&
+            !isAddressOutOfMap(addr_rd)  )
+        {
+            var_lu = step_esdf_var[addr_lu];
+            var_ru = step_esdf_var[addr_ru];
+            var_ld = step_esdf_var[addr_ld];
+            var_rd = step_esdf_var[addr_rd];
+
+            var_d  = var_rd + (var_ld - var_rd) * (index_x - (lines_index_x2 + 0.5));
+            var_u  = var_ru + (var_lu - var_ru) * (index_x - (lines_index_x2 + 0.5));
+
+            if(fabs(var_lu) > 1e8 || fabs(var_ru) > 1e8 ||fabs(var_ld) > 1e8 ||fabs(var_rd) > 1e8 ){return 0;}
+            esdf_cost       = var_d + (var_u - var_d) * (index_y - (lines_index_y2 + 0.5));
+        }
+
+        return esdf_cost;
+
+    }
+    Eigen::Vector3d LanGridMapManager::calcStepESDF_Grid(const Eigen::Vector3d& pos_w)
+    {
+        double posx, posy;        //posm
+        double index_x , index_y;
+
+        int lines_index_x1 , lines_index_x2;
+        int lines_index_y1 , lines_index_y2;
+
+        double var_lu, var_ru;
+        double var_ld, var_rd;
+        double g_u, g_d;
+        double g_l, g_r;
+        double gx,gy,gz;
+        int addr_lu, addr_ld, addr_ru, addr_rd;
+        Eigen::Vector4d posw, posm;
+        posw(0) = pos_w(0);
+        posw(1) = pos_w(1);
+        posw(2) = 0;
+        posw(3) = 1;
+        posm = posW2posM(posw);
+        posx = posm(0);
+        posy = posm(1);
+
+        index_x = posx /  p_grid_resolution;
+        if(index_x - floor(index_x) <= 0.5)
+        {
+            lines_index_x1 = floor(index_x);
+            lines_index_x2 = floor(index_x) - 1;
+        }
+        else
+        {
+            lines_index_x1 = ceil(index_x);
+            lines_index_x2 = floor(index_x);
+        }
+
+        index_y = posy / p_grid_resolution;
+        if(index_y - floor(index_y) <= 0.5)
+        {
+            lines_index_y1 = floor(index_y);
+            lines_index_y2 = floor(index_y) - 1;
+        }
+        else
+        {
+            lines_index_y1 = ceil(index_y);
+            lines_index_y2 = floor(index_y);
+        }
+   
+        ////////////////////////
+        addr_lu = toAddress(lines_index_x1 , lines_index_y1);
+        addr_ru = toAddress(lines_index_x2 , lines_index_y1);
+        addr_ld = toAddress(lines_index_x1 , lines_index_y2);
+        addr_rd = toAddress(lines_index_x2 , lines_index_y2);
+        if( !isAddressOutOfMap(addr_lu) &&
+            !isAddressOutOfMap(addr_ru) &&
+            !isAddressOutOfMap(addr_ld) &&
+            !isAddressOutOfMap(addr_rd)  )
+        {
+            var_lu = step_esdf_var[addr_lu];
+            var_ru = step_esdf_var[addr_ru];
+            var_ld = step_esdf_var[addr_ld];
+            var_rd = step_esdf_var[addr_rd];
+            if(fabs(var_lu) > 1e8 || fabs(var_ru) > 1e8 ||fabs(var_ld) > 1e8 ||fabs(var_rd) > 1e8 ){return Eigen::Vector3d::Zero();}
+
+            g_u = (var_lu - var_ru) / p_grid_resolution;
+            g_d = (var_ld - var_rd) / p_grid_resolution;
+            g_l = (var_lu - var_ld) / p_grid_resolution;
+            g_r = (var_ru - var_rd) / p_grid_resolution;
+            //gx
+            gx =  -(  g_r + (g_l - g_r) * (index_x - (lines_index_x2 + 0.5))  );
+
+            //gy
+            gy =  -(  g_d + (g_u - g_d) * (index_y - (lines_index_y2 + 0.5))  );
+        }
+        else
+        {
+            gx = gy = 0;
+        }
+        gz = 0;
+        Eigen::Vector3d g;
+        g(0) = gx;
+        g(1) = gy;
+        g(2) = gz;
+        return g;
+    }
+
 
     double LanGridMapManager::getBlinearGap(const Eigen::Vector3d& pos_w)
     {
@@ -729,7 +1056,7 @@ namespace ugv_planner
     }
 
 
-    Eigen::Vector3d LanGridMapManager::getBlinearGapGrid(const Eigen::Vector3d& pos_w)
+    Eigen::Vector3d LanGridMapManager::getBlinearGapGrad(const Eigen::Vector3d& pos_w)
     {
         double posx, posy;        //posm
         double index_x , index_y;
@@ -811,24 +1138,138 @@ namespace ugv_planner
 
 
 
-    void LanGridMapManager::calcZ_CostGrid(const Eigen::Vector3d& pos_w , double &z_cost , Eigen::Vector3d& z_grad)
+    void LanGridMapManager::calcZ_CostGrad(const Eigen::Vector3d& pos_w , double &z_cost , Eigen::Vector3d& z_grad)
     {
 
         double gap_value = getBlinearGap(pos_w);
-        Eigen::Vector3d gvgrid;
-        gvgrid = getBlinearGapGrid(pos_w);
+        Eigen::Vector3d gvgrad;
+        gvgrad = getBlinearGapGrad(pos_w);
+        // gvgrad means " d gap_value(x,y) "
 
-
-        //double minco_h  = 0.5 * (min_height + gap_value);
         double a = ( sqrt(max_height - min_height) + min_height ) / max_height;
         double minco_h  = pow( a * gap_value - min_height , 2) + min_height; 
         double z = pos_w(2);
-        z_cost = pow( z - minco_h, 2 );
-        z_grad = Eigen::Vector3d(0,0,0);
 
-        z_grad(0) = 2 * (z - minco_h) * (-2) * a * (a * gap_value - min_height) * gvgrid(0);
-        z_grad(1) = 2 * (z - minco_h) * (-2) * a * (a * gap_value - min_height) * gvgrid(1);
-        z_grad(2) = 2 * (z - minco_h) ;
+        double f_minco_h =  pow( minco_h - max_height ,2);
+        double h_minco_h =  pow( z - minco_h, 2 );
+        z_cost = f_minco_h * h_minco_h;
+        z_grad = Eigen::Vector3d(0,0,0);
+        
+        double z_gradx_f, z_gradx_h, z_grady_f, z_grady_h;
+        z_gradx_h = 2 * (z - minco_h) * (-2) * a * (a * gap_value - min_height) * gvgrad(0);
+        z_grady_h = 2 * (z - minco_h) * (-2) * a * (a * gap_value - min_height) * gvgrad(1);
+        z_gradx_f = 2 * ( minco_h - max_height ) * (2) * a * (a * gap_value - min_height) * gvgrad(0);
+        z_grady_f = 2 * ( minco_h - max_height ) * (2) * a * (a * gap_value - min_height) * gvgrad(1);
+
+        z_grad(0) = z_gradx_f * h_minco_h + z_gradx_h * f_minco_h;
+        z_grad(1) = z_grady_f * h_minco_h + z_grady_h * f_minco_h;
+        z_grad(2) = 2 * (z - minco_h) * f_minco_h ;
+    }
+
+
+    bool LanGridMapManager::getStepDirCostAndGrad(const Eigen::Vector3d p, const Eigen::Vector3d v,
+                                        Eigen::Vector3d& gradp,
+                                        Eigen::Vector3d& gradv,
+                                        double& costp, 
+                                        double& costv)
+    {
+        Eigen::Vector2d focus1, focus2;
+        Eigen::Vector2d p_err1, p_err2;
+        Eigen::Vector2d v_dir       ;
+        Eigen::Vector2d focus_dir1  ;
+        Eigen::Vector2d focus_dir2  ;
+        Eigen::Vector2d p_xy   = Eigen::Vector2d( p(0) , p(1) );
+        Eigen::Vector2d v_xy   = Eigen::Vector2d( v(0) , v(1) );
+        double ellipse_a = 1.0;
+        double ellipse_b = 0.6;
+        double ellipse_c = sqrt( ellipse_a * ellipse_a - ellipse_b * ellipse_b );
+        double slit_width = 1.25;
+        double pdis1 = 0, pdis2 = 0;
+        double dpen  = 0;
+        double cost_p = 0 , cost_v = 0;
+        double grad_px = 0 , grad_vx = 0;
+        double grad_py = 0 , grad_vy = 0;
+
+        double vdis = 0;
+        bool ret = false;
+        if( jps.size() == 0)
+        {
+            return false;
+        }
+        for(JumpPoint jp : jps)
+        {
+            v_dir       = jp.velocity_dir;
+            v_dir.normalize();
+            v_dir *= 2 * ellipse_c;
+            focus_dir1  = Eigen::Vector2d( -v_dir(1),  v_dir(0) );
+            focus_dir2  = Eigen::Vector2d( v_dir(1) , -v_dir(0) );
+            focus_dir1.normalize();
+            focus_dir2.normalize();
+
+            focus1  = jp.takeoff_pos + focus_dir1 * slit_width/2 - v_dir/2;
+            focus2  = focus1 + v_dir;
+            p_err1  = (p_xy - focus1);
+            p_err2  = (p_xy - focus2);
+            pdis1   = p_err1.norm();
+            pdis2   = p_err2.norm();
+            dpen    = 2 * ellipse_a - pdis1 - pdis2;
+            if(dpen > 0)
+            {
+                ret = true;
+                cost_p += dpen;
+                grad_px += - ( (p(0) - focus1(0))/pdis1 + (p(0) - focus2(0))/pdis2 );
+                grad_py += - ( (p(1) - focus1(1))/pdis1 + (p(1) - focus2(1))/pdis2 );
+            }
+
+            focus1  = jp.takeoff_pos + focus_dir2 * slit_width/2 - v_dir/2;
+            focus2  = focus1 + v_dir;
+            p_err1  = (p_xy - focus1);
+            p_err2  = (p_xy - focus2);
+            pdis1   = p_err1.norm();
+            pdis2   = p_err2.norm();
+            dpen    = 2 * ellipse_a - pdis1 - pdis2;
+            if(dpen > 0)
+            {
+                ret = true;
+                cost_p += dpen;
+                grad_px += - ( (p(0) - focus1(0))/pdis1 + (p(0) - focus2(0))/pdis2 );
+                grad_py += - ( (p(1) - focus1(1))/pdis1 + (p(1) - focus2(1))/pdis2 );
+            }
+
+            ///////////////////////////////
+
+            vdis   = (v_dir - v_xy).squaredNorm();
+            cost_v += vdis;
+            grad_vx += -2 * (v_dir(0) - v(0));
+            grad_vy += -2 * (v_dir(1) - v(1));
+ 
+        }
+        if(ret == false)
+        {
+            return false;
+        }
+        
+        //cout<<"cp, cv = "<< -w_dir <<"  |  "<<cost_v<<endl;
+
+        //double grad_vx =  ((v(0) * des_dir(0))/v_xy.norm() - 1) * ( -(des_v(0) - v(0)) / err ) / pow(err_plus_one , 2);
+        //double grad_vy =  ((v(1) * des_dir(1))/v_xy.norm() - 1) * ( -(des_v(1) - v(1)) / err ) / pow(err_plus_one , 2);
+        //double grad_vx = -((des_v(0) - v(0))*( (des_dir(0)*v(0))/v_xy.norm()  - 1) / err);
+        //double grad_vy = -((des_v(1) - v(1))*( (des_dir(1)*v(1))/v_xy.norm()  - 1) / err);
+        //double grad_vx = -2 * (des_v(0) - v(0));
+        //double grad_vy = -2 * (des_v(1) - v(1));
+
+
+        costp = cost_p;
+        //costp = 1;
+        costv = cost_v;
+        //costv = 1;
+        gradp = Eigen::Vector3d(grad_px, grad_py , 0);
+        //gradp = Eigen::Vector3d(0, 0 , 0);
+        gradv = Eigen::Vector3d(grad_vx, grad_vy , 0);
+        //gradv = Eigen::Vector3d(0, 0 , 0);
+
+        return true;
+
     }
 
 
@@ -940,7 +1381,7 @@ namespace ugv_planner
 
         Eigen::Vector2i neighbor_index;
         int neighbor_indx, neighbor_indy;
-        double ite_cost, neighbor_cost, heu;
+        double ite_cost, neighbor_cost, heu, stepeu;
 
         int iter = 0;
 
@@ -990,12 +1431,14 @@ namespace ugv_planner
                     if( indexInMap(neighbor_indx, neighbor_indy) && 
                        !isInSet(set, 1 , neighbor_index) && 
                        !isInSet(set, -1, neighbor_index) && 
-                       !is_occupiedI(neighbor_index,4) )
+                       !is_occupiedI(neighbor_index,3) )
                     {
                         heu = (end_index - neighbor_index).norm();
+                        stepeu = abs(getHeightByI(ite_index) - getHeightByI(neighbor_index));
 
                         neighbor_cost = ( (i * j == 0) ? p_grid_resolution : (p_grid_resolution * 1.41)) + ite_cost
-                                        + heu * p_grid_resolution ;
+                                        + heu * p_grid_resolution; 
+                                        //+ stepeu * 100;
                         set.push_back(new GridNode( point423(index2PosW(neighbor_index)),  neighbor_cost,  neighbor_index, (ite_par) ,1) );
                         open_set_size ++;
 
@@ -1175,7 +1618,7 @@ namespace ugv_planner
                         isInSet(C_plus, point423(index2PosW(neighbor_index)))    || 
                         isInSet(C, point423(index2PosW(neighbor_index)))         ||
                         isInSet(neighbors, point423(index2PosW(neighbor_index))) ||
-                        is_not_occupiedI(neighbor_index,0)){continue;}
+                        !is_stepI(neighbor_index) ){continue;}
                     neighbors.push_back(point423(index2PosW(neighbor_index)));
                 }
             }
@@ -1187,8 +1630,7 @@ namespace ugv_planner
     {
         for(int i = 0 ; i < C.size() ; i++)
         {
-            //                                 here flate must be 0
-            if( is_not_occupied_line( point324(C[i]) , point324(pos) ,0)) { return false;}
+            if( is_not_step_line( point324(C[i]) , point324(pos)) ) { return false;}
         }
         return true;
     }
