@@ -1,10 +1,13 @@
 <launch>
 
     <arg name="drone_id" value="0"/>
+    <arg name="max_height" value="1.0"/>
     <arg name="odom_topic" value="viscar/odom" />
     
     <!-- trajectory server -->
     <node pkg="ugv_planner" name="ugv_traj_server" type="traj_server" output="screen">
+      <param name="max_height" value="$(arg max_height)" />
+
       <remap from="~controller_cmd" to="/ugv_planning/wheels_vel_cmd"/>
       <remap from="~jump_command" to="/ugv_planning/jump_cmd"/>
       <remap from="~trajectory_topic" to="/ugv_planner_node/trajectory"/>
@@ -15,6 +18,8 @@
 
     <!--main planner-->
     <node pkg="ugv_planner" name="ugv_planner_node" type="ugv_planner_node" output="screen">
+      <param name="max_height" value="$(arg max_height)" />
+
       <remap from="~trajectory_topic" to="/ugv_planner_node/trajectory"/>
       <remap from="global_map" to="/global_map"/>
       <remap from="odom" to="/viscar/odom"/>
@@ -32,6 +37,8 @@
     <!-- use simulator -->
 
     <include file="$(find ugv_planner)/launch/simulator.xml">
+
+        <arg name="max_height" value="$(arg max_height)" />
         <arg name="drone_id" value="$(arg drone_id)"/>
         <arg name="map_size_x_" value="40"/>
         <arg name="map_size_y_" value="60"/>

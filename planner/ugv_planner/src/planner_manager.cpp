@@ -55,6 +55,9 @@ namespace ugv_planner
     minco_traj_optimizer -> setEnvironment(global_map_manager);
 
 
+    global_map_manager -> setParam(nh);
+
+
     vis_render.init(nh);
   }
 

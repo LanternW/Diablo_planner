@@ -8,6 +8,7 @@
 
 #include "minco.hpp"
 
+
 namespace ugv_planner {
 
 class TrajOpt {

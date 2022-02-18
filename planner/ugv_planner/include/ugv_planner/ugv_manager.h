@@ -18,9 +18,9 @@ public:
     ros::Subscriber waypoints_sub, odom_sub;
     ros::Publisher visugv_pub;
 
-    double max_height = 0.8;
+    double max_height;
 private:
-    std::string mesh_resource,mesh_resource2;
+    std::string mesh_resource,mesh_resource2,mesh_resource3;
     std::string frame;
     double ugv_l, ugv_w, ugv_h;
 };

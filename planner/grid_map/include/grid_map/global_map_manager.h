@@ -212,6 +212,9 @@ namespace ugv_planner
                                         Eigen::Vector3d& gradv,
                                         double& costp, 
                                         double& costv);
+            
+
+            void setParam(ros::NodeHandle& nh);
 
 
         private:

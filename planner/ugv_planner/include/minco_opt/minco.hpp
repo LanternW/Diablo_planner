@@ -139,6 +139,7 @@ class BandedSystem {
 };
 
 class MinJerkOpt {
+ 
  public:
   int N;
   Eigen::Matrix3d headPVA;

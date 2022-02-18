@@ -8,7 +8,10 @@ void UgvManager::init(ros::NodeHandle &nh)
     nh.param("ugv/ugv_h",ugv_h,0.3);
     nh.param("ugv/mesh" ,mesh_resource, std::string("package://ugv_planner/param/car.dae"));
     nh.param("ugv/mesh2" ,mesh_resource2, std::string("package://ugv_planner/param/car.dae"));
+    nh.param("ugv/mesh3" ,mesh_resource3, std::string("package://ugv_planner/param/car.dae"));
     nh.param("ugv/frame",frame,std::string("world"));
+
+    nh.param("max_height",max_height, 1.0);
 
     /* callback */
     visugv_pub    = nh.advertise<visualization_msgs::Marker>("odom_mesh", 100,true);
@@ -54,6 +57,9 @@ void UgvManager::init(ros::NodeHandle &nh)
 
 void UgvManager::odomCallback(const nav_msgs::OdometryConstPtr& odom)
 {
+    //static double t = 0;
+    //t += 0.01;
+    //if (t > 0.4){t = 0;}
     visualization_msgs::Marker WpMarker;
     WpMarker.id               = 0;
     WpMarker.header.stamp     = ros::Time::now();
@@ -75,38 +81,79 @@ void UgvManager::odomCallback(const nav_msgs::OdometryConstPtr& odom)
                           odom->pose.pose.orientation.y,
                           odom->pose.pose.orientation.z );
 
+    Eigen::Vector3d eulerAngle = q.matrix().eulerAngles(2,1,0);
     Eigen::Matrix3d       R(q);
-		double odom_yaw 	    = atan2(R.col(0)[1],R.col(0)[0]);  
+		double odom_yaw 	    = atan2(R.col(0)[1],R.col(0)[0]); 
+    if(odom_yaw > 0){eulerAngle[0] *= -1;} 
 
-    Eigen::Quaterniond qz(cos(-M_PI/4),0,0,sin(-M_PI/4));
+    Eigen::AngleAxisd rollTrans(Eigen::AngleAxisd( eulerAngle[1],Eigen::Vector3d::UnitX()));
+    Eigen::AngleAxisd pitchTrans(Eigen::AngleAxisd(-eulerAngle[0],Eigen::Vector3d::UnitY()));
+    Eigen::AngleAxisd yawTrans(Eigen::AngleAxisd(eulerAngle[2],Eigen::Vector3d::UnitZ())); 
+    Eigen::Quaterniond qtr = yawTrans * pitchTrans * rollTrans;
 
-    double d = max_height - odom->pose.pose.position.z - 0.2;
-    Eigen::Quaterniond qx0(cos(-d/1.5),sin(-d/1.5),0,0);
-    Eigen::Quaterniond qx1(cos(d/1.5),sin(d/1.5),0,0);
+    //std::cout<<"yaw = " << eulerAngle[0] <<", odom_yaw = " << odom_yaw<<std::endl;
+
+    Eigen::AngleAxisd rollAngle(Eigen::AngleAxisd( M_PI/2,Eigen::Vector3d::UnitX()));
+    Eigen::AngleAxisd pitchAngle(Eigen::AngleAxisd(0,Eigen::Vector3d::UnitY()));
+    Eigen::AngleAxisd yawAngle(Eigen::AngleAxisd(M_PI,Eigen::Vector3d::UnitZ())); 
+    Eigen::Quaterniond qder = yawAngle * pitchAngle * rollAngle;
+
+    //Eigen::Quaterniond qz(cos(0),0,0,sin(0));
+    //Eigen::Quaterniond qx(sin(t),0,0,cos(t));
+    //std::cout<<"theta = " <<t<<std::endl;
+    //Eigen::Quaterniond qy(0, sin(t),0,cos(t));
+
+    double d = max_height - odom -> pose.pose.position.z;
+    //d = t;
+    //Eigen::Quaterniond qx0(cos(-d/1.5),sin(-d/1.5),0,0);
+    //Eigen::Quaterniond qx1(cos(d/1.5),sin(d/1.5),0,0);
+
+    Eigen::AngleAxisd rollDir(Eigen::AngleAxisd( 0,Eigen::Vector3d::UnitX()));
+    Eigen::AngleAxisd pitchDir0(Eigen::AngleAxisd(d,Eigen::Vector3d::UnitZ()));
+    Eigen::Quaterniond qdir0 = pitchDir0 * rollDir;
+    Eigen::AngleAxisd pitchDir1(Eigen::AngleAxisd(-2*d,Eigen::Vector3d::UnitZ()));
+    Eigen::Quaterniond qdir1 = pitchDir1 * rollDir;
 
     double jump_height = odom->twist.twist.angular.x;
 
-    Eigen::Quaterniond q0,q1;
-    q0 = qz*q*qx0;
+    double z_buf = ( 0.5 * jump_height ) > (max_height - 0.8) ? (max_height - 0.8) : ( 0.5 * jump_height ) ;
+    d += 0.5*z_buf;
+
+    Eigen::Quaterniond q0,q1,q2;
+    q0 = qder * qtr * qdir1;
     WpMarker.pose.orientation.w = q0.w();
     WpMarker.pose.orientation.x = q0.x();
     WpMarker.pose.orientation.y = q0.y();
-    WpMarker.pose.orientation.z = q0.z();
-    WpMarker.pose.position.x      = odom->pose.pose.position.x;
-    WpMarker.pose.position.y      = odom->pose.pose.position.y + 0.225 * cos(odom_yaw);
-    WpMarker.pose.position.z      = max_height - 0.6 + jump_height;
-    WpMarker.mesh_resource      = mesh_resource;
+    WpMarker.pose.orientation.z = q0.z();  //leg
+    WpMarker.pose.position.x      = odom -> pose.pose.position.x + 1.0 * sin(odom_yaw) + 0.5*d * cos(odom_yaw);
+    WpMarker.pose.position.y      = odom -> pose.pose.position.y - 1.0 * cos(odom_yaw) + 0.5*d * sin(odom_yaw);
+    WpMarker.pose.position.z      = jump_height + 0.7*d   - z_buf;
+    WpMarker.mesh_resource      = mesh_resource2;
     visugv_pub.publish(WpMarker);
 
-
-    q1 = qz*q*qx1;
+    //WpMarker.pose.position.x += d;
+    q1 = qder * qtr ;//* qdir1;
     WpMarker.pose.orientation.w = q1.w();
     WpMarker.pose.orientation.x = q1.x();
     WpMarker.pose.orientation.y = q1.y();
     WpMarker.pose.orientation.z = q1.z();
-    WpMarker.mesh_resource      = mesh_resource2;
+    WpMarker.mesh_resource      = mesh_resource;   //height_pure
+    WpMarker.pose.position.x      = odom -> pose.pose.position.x + 0.2 * sin(odom_yaw);
+    WpMarker.pose.position.y      = odom -> pose.pose.position.y - 0.2 * cos(odom_yaw);
+    WpMarker.pose.position.z      = jump_height - d + 0.5   -z_buf;
     WpMarker.id               = 1;
-    WpMarker.pose.position.z      = max_height - 0.8 + jump_height;
+    visugv_pub.publish(WpMarker);
+
+    q2 = qder * qtr * qdir0;
+    WpMarker.pose.orientation.w = q2.w();
+    WpMarker.pose.orientation.x = q2.x();
+    WpMarker.pose.orientation.y = q2.y();
+    WpMarker.pose.orientation.z = q2.z();
+    WpMarker.mesh_resource      = mesh_resource3; // mid
+    WpMarker.pose.position.x      = odom -> pose.pose.position.x + 1.0 * sin(odom_yaw) - 0.8*d * cos(odom_yaw);
+    WpMarker.pose.position.y      = odom -> pose.pose.position.y - 1.0 * cos(odom_yaw) - 0.8*d * sin(odom_yaw);
+    WpMarker.pose.position.z      = jump_height - 1.4 * d   - z_buf;
+    WpMarker.id               = 2;
     visugv_pub.publish(WpMarker);
 }
 

@@ -16,7 +16,7 @@ namespace ugv_planner
         map_width            = 10.0;
         truncation_distance  = 0.5;
 
-        max_height           = 0.8;
+        //max_height           = 0.8;
         min_height           = 0.3;
         max_jump_height      = 0.3;
 
@@ -27,6 +27,12 @@ namespace ugv_planner
 
     }
     LanGridMapManager::~LanGridMapManager(){}
+
+
+    void LanGridMapManager::setParam(ros::NodeHandle& nh)
+    {
+        nh.param("max_height", max_height, 1.0);
+    }
 
     void LanGridMapManager::rcvGlobalMapHandler(const sensor_msgs::PointCloud2& global_map)
     {

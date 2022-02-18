@@ -31,8 +31,8 @@ void initParams()
 {
 	p_init_x = 1.5;
 	p_init_y = -0.5;
-	p_init_z = 0.8;
-	max_height = 0.8;
+	//p_init_z = 0.8;
+	//max_height = 0.8;
 	min_height = 0.2;
 }
 
@@ -60,7 +60,7 @@ void rcvJmpCmdCallBack(const std_msgs::Empty jcmd)
 	if(in_air == false)
 	{
 		in_air  = true;
-		up_speed = 4.155;
+		up_speed = 4.0;
 	}
 }
 
@@ -90,13 +90,7 @@ void pubOdom()
 		double last_z  	    = last_odom.pose.pose.position.z;
 		double last_a       = last_odom.twist.twist.angular.x;
 
-		if(in_air)
-		{
-			up_speed -= 9.8 * 0.01;
-			double new_a        = last_a + up_speed *  0.01; 
-			if(new_a <= 0){ new_a = 0; in_air = false;}   
-			new_odom.twist.twist.angular.x = new_a;  
-		}
+		
 
 
 		new_odom.pose.pose.position.x  = last_x + 0.5 * (vel_left + vel_right) * cos(last_yaw) * time_resolution ;
@@ -108,6 +102,14 @@ void pubOdom()
 		new_odom.twist.twist.linear.z  = vel_vertical;
 		                 double omega  = (vel_right - vel_left) / 0.5;
 		new_odom.twist.twist.angular.z = omega;
+
+		if(in_air)
+		{
+			up_speed -= 9.8 * 0.01;
+			double new_a        = last_a + up_speed *  0.01; 
+			if(new_a <= 0){ new_a = 0; in_air = false;}   
+			new_odom.twist.twist.angular.x = new_a;  
+		}
 
 		double yaw = last_yaw + omega * time_resolution;
 		normyaw(yaw);
@@ -139,6 +141,10 @@ int main (int argc, char** argv)
 {        
     ros::init (argc, argv, "ugv_kinematic_model_node");
     ros::NodeHandle nh( "~" );
+
+	
+    nh.param("max_height", max_height, 1.0);
+    nh.param("max_height", p_init_z, 1.0);
 
 	initParams();
 	
