@@ -77,6 +77,7 @@ namespace ugv_planner {
             pt.x = pos(0);
             pt.y = pos(1);
             pt.z = pos(2);
+            // pt.z = 0.05;
             traj_vis.points.push_back(pt);
         }
         trajectory_vis_pub.publish(traj_vis);

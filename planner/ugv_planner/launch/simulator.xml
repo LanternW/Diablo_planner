@@ -34,6 +34,7 @@
         <param name="ugv/mesh" value="package://ugv_planner/param/body.STL"  type="string"/>
         <param name="ugv/mesh2" value="package://ugv_planner/param/leg.STL"  type="string"/>
         <param name="ugv/mesh3" value="package://ugv_planner/param/mid.STL"  type="string"/>
+        <param name="ugv/mesh4" value="package://ugv_planner/param/wheels.STL"  type="string"/>
         <param name="ugv/frame" value="world"  type="string"/>
         <remap from="~odom" to="$(arg odometry_topic)"/>
         <remap from="~odom_mesh" to="ugv_model"/>

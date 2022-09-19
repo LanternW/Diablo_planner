@@ -20,7 +20,7 @@ public:
 
     double max_height;
 private:
-    std::string mesh_resource,mesh_resource2,mesh_resource3;
+    std::string mesh_resource ,mesh_resource2 ,mesh_resource3 ,mesh_resource4;
     std::string frame;
     double ugv_l, ugv_w, ugv_h;
 };

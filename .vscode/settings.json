@@ -77,7 +77,10 @@
         "hash_set": "cpp",
         "cfenv": "cpp",
         "*.ipp": "cpp",
-        "csignal": "cpp"
+        "csignal": "cpp",
+        "condition_variable": "cpp",
+        "mutex": "cpp",
+        "variant": "cpp"
     },
     "C_Cpp.errorSquiggles": "Disabled"
 }

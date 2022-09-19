@@ -9,6 +9,7 @@ void UgvManager::init(ros::NodeHandle &nh)
     nh.param("ugv/mesh" ,mesh_resource, std::string("package://ugv_planner/param/car.dae"));
     nh.param("ugv/mesh2" ,mesh_resource2, std::string("package://ugv_planner/param/car.dae"));
     nh.param("ugv/mesh3" ,mesh_resource3, std::string("package://ugv_planner/param/car.dae"));
+    nh.param("ugv/mesh4" ,mesh_resource4, std::string("package://ugv_planner/param/car.dae"));
     nh.param("ugv/frame",frame,std::string("world"));
 
     nh.param("max_height",max_height, 1.0);
@@ -60,6 +61,9 @@ void UgvManager::odomCallback(const nav_msgs::OdometryConstPtr& odom)
     //static double t = 0;
     //t += 0.01;
     //if (t > 0.4){t = 0;}
+    static double w_ang = 0;
+    w_ang += odom->twist.twist.angular.y * 0.1 ;
+    //w_ang += 0.05;
     visualization_msgs::Marker WpMarker;
     WpMarker.id               = 0;
     WpMarker.header.stamp     = ros::Time::now();
@@ -113,6 +117,8 @@ void UgvManager::odomCallback(const nav_msgs::OdometryConstPtr& odom)
     Eigen::Quaterniond qdir0 = pitchDir0 * rollDir;
     Eigen::AngleAxisd pitchDir1(Eigen::AngleAxisd(-2*d,Eigen::Vector3d::UnitZ()));
     Eigen::Quaterniond qdir1 = pitchDir1 * rollDir;
+    Eigen::AngleAxisd pitchDir2(Eigen::AngleAxisd(2*d + w_ang ,Eigen::Vector3d::UnitZ()));
+    Eigen::Quaterniond qdir2 = pitchDir2 * rollDir;
 
     double jump_height = odom->twist.twist.angular.x;
 
@@ -127,7 +133,7 @@ void UgvManager::odomCallback(const nav_msgs::OdometryConstPtr& odom)
     WpMarker.pose.orientation.z = q0.z();  //leg
     WpMarker.pose.position.x      = odom -> pose.pose.position.x + 1.0 * sin(odom_yaw) + 0.5*d * cos(odom_yaw);
     WpMarker.pose.position.y      = odom -> pose.pose.position.y - 1.0 * cos(odom_yaw) + 0.5*d * sin(odom_yaw);
-    WpMarker.pose.position.z      = jump_height + 0.7*d   - z_buf;
+    WpMarker.pose.position.z      = jump_height + 0.8*d   - z_buf;
     WpMarker.mesh_resource      = mesh_resource2;
     visugv_pub.publish(WpMarker);
 
@@ -155,6 +161,47 @@ void UgvManager::odomCallback(const nav_msgs::OdometryConstPtr& odom)
     WpMarker.pose.position.z      = jump_height - 1.4 * d   - z_buf;
     WpMarker.id               = 2;
     visugv_pub.publish(WpMarker);
+
+    q2 = qder * qtr * qdir2;
+    WpMarker.pose.orientation.w = q2.w();
+    WpMarker.pose.orientation.x = q2.x();
+    WpMarker.pose.orientation.y = q2.y();
+    WpMarker.pose.orientation.z = q2.z();
+    WpMarker.mesh_resource      = mesh_resource4; // wheels
+
+    //static double r = 0.4;
+    //static double a = 3;
+    //if(w_ang > M_PI * 2){
+    //   a -= 0.001;   w_ang -= 2 * M_PI; 
+    //   if(a < 2.0){a = 3; r += 0.01;}
+    //   std::cout<<a<< "\t" <<r<<std::endl;
+    //}
+
+    double a = 2.7, r = 0.4;
+
+    WpMarker.pose.position.x      = odom -> pose.pose.position.x + 1.0 * sin(odom_yaw) + 0.2 * d * cos(odom_yaw) + r * (cos(a) -  cos(a - w_ang - 2*d)) * cos(odom_yaw);
+    WpMarker.pose.position.y      = odom -> pose.pose.position.y - 1.0 * cos(odom_yaw) + 0.2 * d * sin(odom_yaw) + r * (cos(a) -  cos(a - w_ang - 2*d)) * sin(odom_yaw);
+    WpMarker.pose.position.z      = jump_height    - z_buf + r * (sin(a) -  sin(a - w_ang - 2*d));
+    WpMarker.id               = 3;
+    visugv_pub.publish(WpMarker);
+
+    //for(int i = 0 ; i < 8; i++)
+    //{ 
+    //  double t_ang = M_PI * i/4.0;
+    //  Eigen::AngleAxisd pitchDirt(Eigen::AngleAxisd(t_ang ,Eigen::Vector3d::UnitZ()));
+    //  Eigen::Quaterniond qdirt = pitchDirt * rollDir;
+    //  q2 = qder * qtr * qdirt;
+    //  WpMarker.pose.orientation.w = q2.w();
+    //  WpMarker.pose.orientation.x = q2.x();
+    //  WpMarker.pose.orientation.y = q2.y();
+    //  WpMarker.pose.orientation.z = q2.z();
+    //  WpMarker.pose.position.x      = odom -> pose.pose.position.x + 1.0 * sin(odom_yaw) - 0.2 * d * cos(odom_yaw) + r * (cos(a) -  cos(a - t_ang));
+    //  WpMarker.pose.position.y      = odom -> pose.pose.position.y - 1.0 * cos(odom_yaw) - 0.2 * d * sin(odom_yaw) ;
+    //  WpMarker.pose.position.z      = jump_height - 0.7 * d   - z_buf + r * (sin(a) -  sin(a - t_ang));
+    //  WpMarker.id               = 4 + i;
+    //  visugv_pub.publish(WpMarker);
+    //}
+    
 }
 
 

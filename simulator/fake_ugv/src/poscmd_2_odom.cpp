@@ -73,9 +73,13 @@ void pubOdom()
 
 	if(rcv_cmd)
 	{
+		
 		double vel_left   = velocity_command.left_wheel_vel;
 		double vel_right  = velocity_command.right_wheel_vel;
 		double vel_vertical = velocity_command.vetical_vel;
+
+		double roll_speed = 0.5 * ( velocity_command.left_wheel_vel + velocity_command.right_wheel_vel );
+	    new_odom.twist.twist.angular.y = roll_speed;
 
 		Eigen::Quaterniond    q(	last_odom.pose.pose.orientation.w,
 							    	last_odom.pose.pose.orientation.x,

@@ -17,7 +17,6 @@ Panels:
     Expanded:
       - /2D Pose Estimate1
       - /2D Nav Goal1
-      - /Publish Point1
     Name: Tool Properties
     Splitter Ratio: 0.5886790156364441
   - Class: rviz/Views
@@ -29,7 +28,7 @@ Panels:
     Experimental: false
     Name: Time
     SyncMode: 0
-    SyncSource: ""
+    SyncSource: sim_global_map
 Preferences:
   PromptSaveOnExit: true
 Toolbars:
@@ -76,9 +75,9 @@ Visualization Manager:
       Queue Size: 10
       Selectable: true
       Size (Pixels): 3
-      Size (m): 0.014999999664723873
+      Size (m): 0.019999999552965164
       Style: Flat Squares
-      Topic: /global_map
+      Topic: /global_map_vis
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: true
@@ -117,13 +116,13 @@ Visualization Manager:
       Queue Size: 100
       Value: true
     - Class: rviz/Marker
-      Enabled: true
+      Enabled: false
       Marker Topic: /ugv_traj_server/point/vis
       Name: des_point
       Namespaces:
         {}
       Queue Size: 100
-      Value: true
+      Value: false
     - Alpha: 1
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
@@ -302,14 +301,11 @@ Visualization Manager:
       Y std deviation: 0.5
     - Class: rviz/SetGoal
       Topic: /move_base_simple/goal
-    - Class: rviz/PublishPoint
-      Single click: true
-      Topic: /clicked_point
   Value: true
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 2.799182176589966
+      Distance: 12.878220558166504
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -317,17 +313,17 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: 2.1001930236816406
-        Y: -9.081771850585938
-        Z: 2.9247379302978516
+        X: 3.8570146560668945
+        Y: -5.57944393157959
+        Z: 0.651012122631073
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.14979712665081024
+      Pitch: 0.419797420501709
       Target Frame: <Fixed Frame>
-      Yaw: 4.315454483032227
+      Yaw: 2.8854544162750244
     Saved: ~
 Window Geometry:
   Displays:

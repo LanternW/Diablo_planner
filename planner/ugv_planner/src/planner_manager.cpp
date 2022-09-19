@@ -7,15 +7,13 @@
 
 //#define DEBUG_TRAJ8
 
-
+// #define CONSIDER_JUMPING
 
 const double pi = 3.1415926535;
 using namespace quickhull;
 
 namespace ugv_planner
 {
-
-
   UGVPlannerManager::UGVPlannerManager() {
 
     has_odom                = false;
@@ -544,6 +542,7 @@ namespace ugv_planner
     double dt = 0.001;
     double mileage = 0.0 , lastwp_mileage = 0.0;
 
+    // corridor-based method
     if(!use_path_wp)
     {
       int current_seg   = 0;
@@ -569,6 +568,7 @@ namespace ugv_planner
       waypoints.push_back(end_pt);
     }
 
+    // esdf-based method
     else
     {
       int di = space_resolution / global_map_manager -> p_grid_resolution;
@@ -581,7 +581,7 @@ namespace ugv_planner
       waypoints.push_back(end_pt);
     }
     
-    vis_render.renderPoints(waypoints, Eigen::Vector3d(0,0,0.9),1, 0.1, 200);
+    // vis_render.renderPoints(waypoints, Eigen::Vector3d(0,0,0.9),1, 0.1, 200);
     int pieceN = waypoints.size();
 
     global_map_manager -> jps.clear();
@@ -589,6 +589,8 @@ namespace ugv_planner
     if (minco_traj_optimizer -> generate_traj(initS, waypoints, pieceN, final_trajectory, false))
     {
       vis_render.visPolynomialTrajectory(final_trajectory, Eigen::Vector3d(1,1,0), 7);
+
+#ifdef CONSIDER_JUMPING
       checkJps();
       global_map_manager -> publishESDFMap();
       if(global_map_manager -> jps.size() == 0)
@@ -615,6 +617,11 @@ namespace ugv_planner
           PublishTraj();
         }
       }
+#else
+    cout << "[minco optimizer]: optimization success." << endl;
+    PublishTraj();
+#endif
+
     }
     else
     {
@@ -671,7 +678,7 @@ namespace ugv_planner
 
   void UGVPlannerManager::trajPlanning(Eigen::Vector3d start_pt, Eigen::Vector3d end_pt , vector<Eigen::Vector3d> path)
   {
-     //generateCurveByOptimizer(start_pt, end_pt, corridors.size());
+    //  generateCurveByOptimizer(start_pt, end_pt, corridors.size()); // trr method
      generateFinalMincoTraj(start_pt, end_pt,path, true);
   }
 
@@ -683,8 +690,11 @@ namespace ugv_planner
     //_polyhedronGenerator -> corridorIncreGeneration(path_0, _poly_array_msg);
     if (path_0.size() > 0)
     {
-      //generateSMC(path_0);
-      //generateOCC();
+      // corridor based method
+      // generateSMC(path_0);
+      // generateOCC();
+
+      // esdf based method
       trajPlanning( now_pos, target_pos, path_0);
     }
     else

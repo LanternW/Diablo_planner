@@ -205,6 +205,8 @@ void cmdCallback(const ros::TimerEvent &e)
       cmd.left_wheel_vel  =  0;
       cmd.right_wheel_vel =  0;
       cmd.vetical_vel     =  0;
+
+      jump_times.clear();
       control_cmd_pub.publish(cmd);
     }
 
