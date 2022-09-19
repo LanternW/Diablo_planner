@@ -159,7 +159,7 @@ void map1Gene()
     geneWall(-0.5, -19.5   ,   10  , 0.5, 1.0);
     geneWall(-0.5, -19 ,   0.5 , 19,  1.0);
     geneWall(9   ,  -19 ,   0.5 , 19,  1.0);
-    geneWall(0.0 ,  -17   , 9 , 0.5 ,  0.22);
+    // geneWall(0.0 ,  -17   , 9 , 0.5 ,  0.22);
     
     //hole
     double x = 0;
@@ -205,10 +205,10 @@ void map2Gene()
 
     geneThickLine(0,-6, 7,0, 0.7, 1.0, 0.5);
     //geneThickLine(0,-10, 10,-6, 0.5, 1.0, 0.5);
-    geneThickLine(3,-5, 9,-8, 0.0, 0.18, 0.5);
-    geneThickLine(2,-17, 9,-15, 0.0, 0.18, 0.5);
+    // geneThickLine(3,-5, 9,-8, 0.0, 0.18, 0.5);
+    // geneThickLine(2,-17, 9,-15, 0.0, 0.18, 0.5);
 
-    geneRing(9, -10 ,0.18, 3, 0.5, 3.14159265, 3.14159265 * 2);
+    // geneRing(9, -10 ,0.18, 3, 0.5, 3.14159265, 3.14159265 * 2);
 
 
 }
@@ -304,7 +304,7 @@ void map5Gene()
 
 
     geneWall(12, -15 ,   0.5 , 15,  1.0);
-    geneWall(17, -15 ,   0.5 , 15,  0.2);
+    // geneWall(17, -15 ,   0.5 , 15,  0.2);
     geneWall(25, -15 ,   0.5 , 10,  1.0);
     geneWall(25, -3 ,   0.5 , 3,  1.0);
     geneWall(12.5, -15 ,   13.0 , 0.5,  1.0);
@@ -317,10 +317,10 @@ void map5Gene()
 
     geneWall(24.5, -22.5 ,   6.0 , 0.5,  1.0);
 
-    geneThickLine(25, -29,  30, -23, 0.0, 0.2, 0.5);
+    // geneThickLine(25, -29,  30, -23, 0.0, 0.2, 0.5);
     geneWall(24, -17.5 ,   6 , 0.5,  1.0);
 
-    geneRing(9, -23.5 ,0.2, 5, 0.5, 0, 3.14159265 * 2);
+    // geneRing(9, -23.5 ,0.2, 5, 0.5, 0, 3.14159265 * 2);
     
     
 
@@ -371,24 +371,30 @@ void map7Gene()
         geneThickLine(x,y,xe,ye,0.7,1.0,0.5);
     }
 
-    t = 5;
-    while(t--) 
-    {   
-        x = rand()%280 / 10 + 2.0;
-        y = -rand()%280/10 - 2.0;
-        xe = rand()%280 / 10 + 2.0;
-        ye = -rand()%280/10 - 2.0;
-        geneThickLine(x,y,xe,ye,0.0,0.2,0.5);
-    }
+    // t = 5;
+    // while(t--) 
+    // {   
+    //     x = rand()%280 / 10 + 2.0;
+    //     y = -rand()%280/10 - 2.0;
+    //     xe = rand()%280 / 10 + 2.0;
+    //     ye = -rand()%280/10 - 2.0;
+    //     geneThickLine(x,y,xe,ye,0.0,0.2,0.5);
+    // }
 }
 
-void pubGlobalMap()
+void pubGlobalMap(int id)
 {
     pcl::PointXYZ                     s_point;
     sensor_msgs::PointCloud2          global_map_cloud, global_map_vis_cloud;
 
-
-    map2Gene();
+    if(id == 1){ map1Gene(); }
+    else if(id == 2){ map2Gene(); }
+    else if(id == 3){ map3Gene(); }
+    else if(id == 4){ map4Gene(); }
+    else if(id == 5){ map5Gene(); }
+    else if(id == 6){ map6Gene(); }
+    else if(id == 7){ map7Gene(); }
+    else{map1Gene();}
 
 
     pcl::toROSMsg(global_map_pcl_cloud, global_map_cloud);
@@ -407,15 +413,20 @@ void pubGlobalMap()
 int main (int argc, char** argv) 
 { 
     ros::init(argc, argv, "tmap_generator"); 
-    ros::NodeHandle nh; 
+    ros::NodeHandle nh("~"); 
 
     global_map_pub      = nh.advertise<sensor_msgs::PointCloud2>("/global_map", 5); 
     global_map_vis_pub  = nh.advertise<sensor_msgs::PointCloud2>("/global_map_vis", 5); 
 
+    int map_id;
+    nh.param("map_id", map_id, 1);
+
+    std::cout<<"map id = "<<map_id<<std::endl;
+
     int t = 3;
     while(t--)
     {
-        pubGlobalMap();
+        pubGlobalMap(map_id);
         ros::Duration(1.0).sleep();
     }
     ros::spin();

@@ -50,7 +50,8 @@
     </include>
 
     <!--simulate global map-->
-    <include file="$(find globalmap_generator)/launch/tmap_gene.launch"/>
+    <include file="$(find globalmap_generator)/launch/tmap_gene.launch">
+    </include>
     <!-- rviz -->
     <node name="rviz" pkg="rviz" type="rviz" args="-d $(find ugv_planner)/param/default.rviz" required="true" />
 </launch>
